@@ -61,3 +61,10 @@ export class Input {
     return element();
   }
 }
+
+export class TextareaState extends InputState {
+  static new(options = {}) { return new TextareaState(options); }
+  set_value(value) { this.text = value; }
+}
+
+export class Textarea extends Input {}

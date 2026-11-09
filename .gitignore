@@ -17,6 +17,7 @@ layouts/.state/
 # untracked file in this repo.
 mods/personal-cockpit/routines.yml
 mods/personal-cockpit/team.yml
+mods/personal-cockpit/jira.config.json
 
 # Herdr writes these into the home it installs to, not here, but a junction
 # install puts the mod folder *inside* the home -- so they can show up.

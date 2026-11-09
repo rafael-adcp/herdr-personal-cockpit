@@ -20,12 +20,16 @@ import { Drawer } from "./drawer.js";
 import { Gallery } from "./gallery.js";
 import { List } from "./list.js";
 import { Picker } from "./picker.js";
+import { Jira } from "./jira.js";
+import { QuerySettings } from "./jira-settings.js";
 
 // A `kind` that is not here is a panel: the four panels name themselves with
 // it, and so does `herdr-app check`, which renders the mod with no props at
 // all. So the list panel is the default rather than an entry.
 const SCREENS = {
   "repo-picker": Picker,
+  jira: Jira,
+  "jira-settings": QuerySettings,
   urgent: Drawer,
   kit: Gallery,
 };
@@ -41,5 +45,9 @@ export default class Cockpit extends View {
 
   render(cx) {
     return this.screen.render(cx);
+  }
+
+  close(cx) {
+    this.screen.close?.(cx);
   }
 }

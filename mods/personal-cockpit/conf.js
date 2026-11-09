@@ -22,7 +22,7 @@ const MOD = "personal-cockpit";
 export const pathOf = (name) => `${appHome()}/mods/${MOD}/${name}`;
 
 /** The example shipped beside it: `team.yml` -> `team.example.yml`. */
-const exampleOf = (name) => name.replace(/(\.ya?ml)$/i, ".example$1");
+const exampleOf = (name) => name.replace(/(\.ya?ml|\.json)$/i, ".example$1");
 
 /** `{ path, missing, config, items, problems }` -- the top-level scalars, the
  *  `- ` list under whichever key has one, and everything that did not parse.
@@ -72,7 +72,7 @@ export async function openFile(name) {
   // `start` is a cmd builtin rather than a program, and exec runs programs. Its
   // first argument is the window title, which it otherwise takes from the path
   // -- leaving it with no path to open.
-  if (platform === "windows") return void (await exec("cmd", ["/c", "start", "", path]));
-  if (platform === "macos") return void (await exec("open", [path]));
-  return void (await exec("xdg-open", [path]));
+  if (platform === "windows") return exec("cmd", ["/c", "start", "", path]);
+  if (platform === "macos") return exec("open", [path]);
+  return exec("xdg-open", [path]);
 }

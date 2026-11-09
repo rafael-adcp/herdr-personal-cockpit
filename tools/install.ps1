@@ -35,11 +35,11 @@ if (Test-Path $dst) {
 
 # /MIR so a file deleted here is deleted there; the two the app writes into the
 # mod folder are left alone, since they belong to the installed version.
-# routines.yml and team.yml join them for a different reason: they are the
+# routines.yml, team.yml and jira.config.json join them because they are the
 # person's own, edited in place so that a new routine or a new teammate never
 # means reinstalling. An /XF file is excluded from the operation, so /MIR does
 # not delete it either.
-robocopy $src $dst /MIR /XF gpui-kit.d.ts jsconfig.json routines.yml team.yml /NFL /NDL /NJH /NJS /NP | Out-Null
+robocopy $src $dst /MIR /XF gpui-kit.d.ts jsconfig.json routines.yml team.yml jira.config.json /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with $LASTEXITCODE" }
 Write-Host "mod      -> $dst"
 

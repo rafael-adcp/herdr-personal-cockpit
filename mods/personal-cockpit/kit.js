@@ -111,6 +111,9 @@ export function header(t, o) {
   if (o.onConfigure) {
     actions.push(action(t, `${o.id}-configure`, o.configureTip ?? "Settings", "mods/personal-cockpit/settings.svg", (_e, cx) => o.onConfigure(cx)));
   }
+  if (o.onBrowse) {
+    actions.push(action(t, `${o.id}-browser`, o.browseTip, "mods/personal-cockpit/browse.svg", (_e, cx) => o.onBrowse(cx)));
+  }
   if (o.place) {
     const here = o.place === "right";
     actions.push(

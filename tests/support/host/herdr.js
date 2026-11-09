@@ -82,7 +82,7 @@ export async function readTextFile(path) {
 /** `expected === null` means "only if it is still absent", which is how
  *  conf.js loses a race instead of overwriting the winner. */
 export async function writeTextFile(path, text, expected) {
-  if (expected === null && host.files.has(path)) throw new Error("exists");
+  if (expected === null ? host.files.has(path) : (host.files.get(path) ?? null) !== expected) throw new Error("stale snapshot");
   host.files.set(path, text);
 }
 

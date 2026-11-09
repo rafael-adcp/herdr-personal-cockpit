@@ -31,14 +31,14 @@ done
 
 dst=$herdr/mods/$name
 
-# routines.yml and team.yml belong to the person, not to the install: they are
+# routines.yml, team.yml and jira.config.json belong to the person: they are
 # edited in place so that a new routine or a new teammate never means
 # reinstalling. The copy below wipes the folder, so they are stashed across it
 # and put back.
-confs="routines team"
+confs="routines.yml team.yml jira.config.json"
 keep=$(mktemp -d)
 for c in $confs; do
-  [ -f "$dst/$c.yml" ] && cp -- "$dst/$c.yml" "$keep/$c.yml"
+  [ -f "$dst/$c" ] && cp -- "$dst/$c" "$keep/$c"
 done
 
 # A previous symlink install has to go before a copy can land. Removing the
@@ -50,12 +50,12 @@ mkdir -p -- "$dst"
 for f in "$root/mods/$name"/*; do
   case $(basename -- "$f") in
     gpui-kit.d.ts|jsconfig.json) continue ;;   # the app writes these itself
-    routines.yml|team.yml) continue ;;         # the person's, restored below
+    routines.yml|team.yml|jira.config.json) continue ;;         # the person's, restored below
   esac
   # -R because the mod folder may hold directories. Without it `cp` refuses a
   # directory, exits 1, and `set -e` ends the install at the first one -- so
   # nothing is installed at all. The exclusions above are basenames at the top
-  # level, which is where all four of those files live, so a subfolder is
+  # level, which is where the generated and personal files live; a subfolder is
   # copied whole and none of them can hide inside one.
   cp -R -- "$f" "$dst/"
 done
@@ -65,10 +65,13 @@ echo "mod      -> $dst"
 # overwrites what somebody wrote. The gear in those panels seeds a file deleted
 # later, so the two ways in agree.
 for c in $confs; do
-  if [ -f "$keep/$c.yml" ]; then
-    cp -- "$keep/$c.yml" "$dst/$c.yml"
-    echo "config   -> kept $dst/$c.yml"
-  elif [ -f "$dst/$c.example.yml" ]; then
+  if [ -f "$keep/$c" ]; then
+    cp -- "$keep/$c" "$dst/$c"
+    echo "config   -> kept $dst/$c"
+  fi
+done
+for c in routines team; do
+  if [ ! -f "$dst/$c.yml" ] && [ -f "$dst/$c.example.yml" ]; then
     cp -- "$dst/$c.example.yml" "$dst/$c.yml"
     echo "config   -> $dst/$c.yml (from the example)"
   fi

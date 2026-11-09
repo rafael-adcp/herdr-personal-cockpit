@@ -251,10 +251,10 @@ test("the recipe's module count is the number of modules there are", () => {
   // recipe is a build of whatever it says, so the count is load-bearing prose.
   const WORDS = {
     ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
-    sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
+    sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, "twenty-one": 21,
   };
   const recipe = read(join(ROOT, "RECIPE.md"));
-  const [, word] = recipe.match(/One mod, ([a-z]+) modules/) ?? [];
+  const [, word] = recipe.match(/One mod, ([a-z-]+) modules/) ?? [];
   assert.ok(word, "RECIPE.md no longer says how many modules this is");
   assert.ok(word in WORDS, `"${word}" is not a number this test knows`);
 

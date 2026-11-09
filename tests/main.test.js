@@ -69,7 +69,7 @@ test("render goes to whichever screen was chosen", () => {
 });
 
 test("the mod renders without throwing, for every screen it has", () => {
-  for (const kind of ["pulls", "issues", "routines", "team", "repo-picker", "urgent", "kit"]) {
+  for (const kind of ["pulls", "issues", "routines", "team", "repo-picker", "urgent", "kit", "jira", "jira-settings"]) {
     reset();
     host.layout = tree({ sidebar: [panelBlock(kind)] });
     // The drawer asks where it is hanging; every other screen ignores it.

@@ -309,6 +309,14 @@ mods/personal-cockpit/
   list.js      the list panel: state, refresh, setup states, keyboard, render,
                and publishing its urgent rows for the drawer. Exports SOURCES,
                the roster of panels there are
+  jira.js      the optional Jira screen, reusing kit.js and dock.js; no urgency rows
+  jira-model.js     pure query, pagination and shaping
+  jira-query.js     exec adapter shared by the panel and query editor
+  jira-settings.js  native JQL dialog
+  jira-bridge.mjs   read-only Node/Pi MCP connection, run as a separate process
+  package.json     private Node ES-module marker; no dependencies
+  JIRA.md          Jira setup and recovery guide
+  jira.config.example.json  Jira site/cloud ID/JQL example; no credentials
   picker.js    the repo dialog
   drawer.js    the floating drawer: reads included panels' published rows, decides
                whether to draw at all and which side the peek goes on.
@@ -333,7 +341,7 @@ mods/personal-cockpit/
                issueTemplates(), viewer(), ago(), agoShort(), the typed error
                kinds, and demo mode (one file answers every call)
   config.js    repoOf / choose / recent / forget, and the precedence
-  conf.js      the YAML config file of a panel: pathOf, read, openFile
+  conf.js      config paths, YAML reads and shared YAML/JSON file opener
   yaml.js      the five-construct YAML reader those files are written in
   pulls.js     the GraphQL query, shaping, grouping and row for your PRs
   team.js      the search, searchFor(), shaping, grouping by person, and row
@@ -342,24 +350,37 @@ mods/personal-cockpit/
   mod.json     { place: "none", title: "Cockpit", focusable: true,
                  overlay: { kind: "dialog", width: 420 } }
   *.svg        pulls, team, issues, routines, urgent, refresh, plus, minus,
-               dock-left, dock-right, settings, new-task
+               dock-left, dock-right, settings, new-task, browse
   *.example.yml  routines and team, seeded on install and by the gear
 tools/sandbox.sh, tools/sandbox.ps1   a throwaway Herdr home on made-up data
 tools/demo.mjs, tools/demo/           the made-up world it runs on
 ```
 
-One mod, seventeen modules, one flat folder — the app's own shape, not a
-shortcut: `main.js` and `mod.json` are required and everything else is `*.js`
-and `*.svg` beside them, the way the shipped `win98` keeps ten `.js` at its
-root. Nothing in `tools/` is installed.
+One mod, twenty-one modules at its root, plus the separate `jira-bridge.mjs`
+Node process; Jira-specific helpers are named `jira-*`.
+The only exported View is `main.js`; there is one `mod.json` and one
+set of panel chrome/docking helpers and assets. The Node bridge is executed as a
+separate process, never imported into the native runtime. Nothing in `tools/`
+is installed.
 
-Seven `kind`s, one screen each. Four layout blocks are panels, with
+Nine `kind`s, one screen each. The four default layout blocks are panels, with
 `props: { kind: "pulls" | "team" | "routines" | "issues", node: "<block id>" }`;
 one floating block is the drawer, `props: { kind: "urgent" }`; and the mod opens
 two of its own as dialog overlays — `{ kind: "repo-picker", panel, current }`
 from a gear, and `{ kind: "kit" }` from the `personal-cockpit.kit` command.
-Which is why none of the three needs a mod folder: a mod cannot import across
-folders, so each would otherwise carry its own copy of the chrome it draws. An
+The optional `kind: "jira"` screen adds a Jira panel to any personal layout;
+`kind: "jira-settings"` is its 680 px native query editor. Its three-minute
+poll uses only read-only JQL searches through the existing managed Pi Atlassian
+login. A failed poll retains even a successful empty list; a refresh requested
+mid-poll is queued. Query save validates before a compare-and-swap config write,
+and closing the overlay cancels a pending save through the View's close hook.
+Only Jira handles the `jira-refresh`, `jira-configure`, `jira-move-left` and
+`jira-move-right` commands; the general `refresh` still reaches every list.
+Its local `jira.config.json` survives both installers. No OAuth credentials
+are copied. Jira does not publish drawer rows. See `JIRA.md` for setup.
+
+None of these screens needs another mod folder: a mod cannot import across
+mod folders, so each would otherwise carry its own copy of the chrome. An
 unknown `kind`, and no props at all, is the pull requests panel — which is what
 `herdr-app check` renders.
 

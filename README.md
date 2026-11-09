@@ -25,6 +25,21 @@ All four keep their last good list when a refresh fails, minimise to their own
 header bar — the minus, or a press anywhere else on the bar — and drop to an
 icon-and-count rail when their column is dragged narrow.
 
+## Optional: My Jira tickets
+
+The [Jira screen](mods/personal-cockpit/JIRA.md) is part of the same mod:
+`content: { mod: "personal-cockpit", props: { kind: "jira", node: "jira-tickets" } }`.
+Both installers include it; enable it by adding a block to your personal layout.
+No second mod or duplicate layout is needed. The default layout stays GitHub-only.
+
+It lists tickets assigned to the signed-in Atlassian user and not done, with key,
+status and priority. It reuses an existing managed Pi Atlassian OAuth login;
+no API token or LLM is required. This adapter is tested with Pi 1.4.0 and requires
+Node.js only when the Jira screen is used. It shares the Cockpit header, rows,
+rail and docking code, and has a native multiline JQL editor with validation
+before saving. See its README for setup, migration and board-filter limitations.
+The local `jira.config.json` is preserved on reinstall, like the YAML configs.
+
 ## The drawer on the edge
 
 Hanging off the left edge of the window is a 44px strip with a count: what is

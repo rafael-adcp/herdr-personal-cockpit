@@ -13,7 +13,7 @@ files — a change that makes the recipe wrong is unfinished.
 
 | Path | What it is |
 | --- | --- |
-| `mods/personal-cockpit/` | The mod: plain ES modules the app loads as they are, its SVGs, and the two example config files. This is what ships. |
+| `mods/personal-cockpit/` | The mod: plain ES modules the app loads as they are, its SVGs, and its YAML/JSON example configs. This is what ships. |
 | `layouts/cockpit.json` | The layout, and `cockpit.svg`, the preview the Settings picker draws. |
 | `tools/install.sh`, `tools/install.ps1` | The installers. They copy `mods/personal-cockpit` and `layouts/` into a Herdr home and nothing else. |
 | `tools/sandbox.sh`, `tools/sandbox.ps1` | A throwaway Herdr home on made-up data, for looking at the panels full. |
@@ -24,11 +24,10 @@ files — a change that makes the recipe wrong is unfinished.
 
 ## The screens
 
-One mod, one folder, flat. `main.js` is required, `mod.json` says where the mod
-first appears, and everything else is `*.js` and `*.svg` beside them — the
-app's shape, not a shortcut. The app's own `win98` keeps ten `.js` at its root
-and uses subfolders only for art. So the files carry the structure in their
-names:
+One mod, one entry point. `main.js` is required and `mod.json` says where
+it first appears. All modules live at the mod root, including Jira's
+`jira-*` helpers and separate `jira-bridge.mjs` Node process.
+There is no second mod, manifest, or copy of the panel controls:
 
 | File | Its one job |
 |---|---|
@@ -37,6 +36,7 @@ names:
 | `drawer.js` | the floating "Needs you" drawer |
 | `gallery.js` | every piece of chrome, on sample data |
 | `picker.js` | the repo dialog |
+| `jira.js`, `jira-*.js`, `jira-bridge.mjs` | optional Jira screen, JQL dialog and read-only provider bridge; reuses `kit.js`, `dock.js` and `conf.js` |
 | `pulls.js` `issues.js` `routines.js` `team.js` | the four panels — one role, four players |
 | `dock.js` | where a panel lives, and how it moves |
 | `kit.js` | the chrome a panel draws |
@@ -44,7 +44,7 @@ names:
 | `checks.js` | what a commit's check rollup means |
 | `github.js` | everything that talks to GitHub, through `gh`, and demo mode |
 | `config.js` | which repo a panel watches |
-| `conf.js` | the YAML file that configures a panel |
+| `conf.js` | config paths, YAML reads and shared YAML/JSON file opener |
 | `yaml.js` | reads the five constructs those files use |
 
 The import lists are worth reading as the design. `kit.js` imports from the
@@ -58,7 +58,9 @@ pick up. `tests/structure.test.js` asserts all of it.
 The four panels are interchangeable to `list.js`, so they are players of one
 role rather than four special cases: each exports the same `load`, `sections`,
 `attention`, `urgent` and `rowOf`, and adding a fifth means writing a module and
-naming it in `list.js`. Nothing else has to know.
+naming it in `list.js`. Nothing else has to know. Jira has its own screen
+because its polling/auth/error contract differs; it shares the visual and
+layout primitives rather than changing the four GitHub source contracts.
 
 ## Why one mod
 

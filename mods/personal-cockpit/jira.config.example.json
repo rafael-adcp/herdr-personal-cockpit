@@ -1,0 +1,5 @@
+{
+  "site": "https://your-team.atlassian.net",
+  "cloudId": "00000000-0000-0000-0000-000000000000",
+  "jql": "assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC"
+}
