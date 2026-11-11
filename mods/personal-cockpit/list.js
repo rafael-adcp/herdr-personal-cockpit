@@ -72,6 +72,15 @@ export class List {
     this.at = 0;
 
     this.repo = this.source.needsRepo ? repoOf(this.source.panel).repo : null;
+    // The pick this panel's source falls back to when its own file names no
+    // repo (routines -> Kraken Tasks). Kept so a change to it is noticed in
+    // `render`, the same way this panel's own pick is.
+    this.from = this.source.repoFrom ? repoOf(this.source.repoFrom).repo : null;
+    // The repo the current failure was about, and the panel whose pick would
+    // change it -- what the "no access" screen names and offers. This panel's
+    // own repo and own picker for the three sources that watch one; a source
+    // that resolves its repo inside `load` says otherwise with the error.
+    this.tried = { repo: this.repo, panel: this.source.panel };
     if (this.source.needsRepo && this.repo && this.source.cached) {
       const saved = this.source.cached(this.repo);
       if (saved) {
@@ -147,6 +156,10 @@ export class List {
           this.state = kind;
           this.error = message;
           this.stale = null;
+          // A source that resolved its own repo names it on the error; for the
+          // rest it is the one this panel was watching all along.
+          this.tried =
+            e?.repo ? { repo: e.repo, panel: e.repoPanel ?? null } : { repo: this.repo, panel: this.source.panel };
         }
       } finally {
         this.busy = false;
@@ -165,10 +178,13 @@ export class List {
   reload(cx) {
     this.items = [];
     this.meta = null;
-    this.state = this.repo ? "loading" : "no-repo";
+    // Only a panel that watches a repo can be short of one. A panel whose
+    // source finds its own would otherwise ask for a pick it has no use for.
+    this.state = this.source.needsRepo && !this.repo ? "no-repo" : "loading";
     this.error = null;
     this.stale = null;
     this.acted = null;
+    this.tried = { repo: this.repo, panel: this.source.panel };
     this.fetchedAt = null;
     if (this.repo && this.source.cached) {
       const saved = this.source.cached(this.repo);
@@ -231,12 +247,18 @@ export class List {
     });
   }
 
-  configure() {
+  /** The repo picker, for this panel's own pick or -- when its source follows
+   *  another panel's -- for that one. The dialog writes `cockpit.<panel>.repo`,
+   *  so the panel it is opened for has to be the one whose key is actually
+   *  read: offering Routines a picker that wrote its own key was a dialog that
+   *  asked a question and threw the answer away. */
+  configure(panel = this.source.panel) {
+    const current = panel === this.source.panel ? this.repo : repoOf(panel).repo;
     openOverlay({
       mod: "personal-cockpit",
       kind: "dialog",
       width: 420,
-      props: { kind: "repo-picker", panel: this.source.panel, current: this.repo },
+      props: { kind: "repo-picker", panel, current },
     });
   }
 
@@ -328,9 +350,23 @@ export class List {
         .child(button(t, `${id}-signin`, "Sign in", () => this.terminal([ghCommand(), "auth", "login"])));
     }
     if (this.state === "not-found") {
-      return panel
-        .child(note(`No access to ${this.repo}. GitHub answers the same for a repo that isn't there and one your login can't see.`))
-        .child(button(t, `${id}-repick`, "Choose another", () => this.configure()));
+      const tried = this.tried;
+      panel.child(
+        note(
+          `No access to ${tried.repo ?? "the repository"}. GitHub answers the same for a repo that isn't there and one your login can't see.`,
+        ),
+      );
+      // The way out has to be whatever decides that repo. `panel: null` means a
+      // file does -- a picker there writes a key nothing reads, so the 404
+      // outlives every attempt to fix it from this screen.
+      if (!tried.panel && this.source.configure) {
+        return panel.child(
+          button(t, `${id}-config`, this.source.configureTip ?? "Settings", (_e, cx) => this.configureWith(cx)),
+        );
+      }
+      return panel.child(
+        button(t, `${id}-repick`, "Choose another", () => this.configure(tried.panel ?? this.source.panel)),
+      );
     }
     // Not every failure is a setup problem: a dropped connection lands here
     // too, so the way out is to try again, not to reinstall anything.
@@ -350,6 +386,21 @@ export class List {
       const current = repoOf(source.panel).repo;
       if (current !== this.repo) {
         this.repo = current;
+        cx.timer.after(0, (cx) => this.reload(cx));
+      }
+    } else if (source.repoFrom) {
+      // Routines' queue, when its file names none, is the repo Kraken Tasks
+      // watches. A pick there is a different queue for this panel too, so it
+      // reloads on the same frame rather than a poll later.
+      //
+      // Whether the file overrides it is only known to the load, so a panel
+      // pinned by `coordination_repo` reloads here too and reads the same
+      // queue again. One `gh` call, on an action that was already reloading
+      // the panel next to it -- cheaper than a second way to say which of the
+      // two the last load used.
+      const current = repoOf(source.repoFrom).repo;
+      if (current !== this.from) {
+        this.from = current;
         cx.timer.after(0, (cx) => this.reload(cx));
       }
     }

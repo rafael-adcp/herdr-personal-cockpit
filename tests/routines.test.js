@@ -13,11 +13,11 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  validate, markerOf, bodyFor, labelsFor,
+  validate, markerOf, bodyFor, labelsFor, repoFrom,
   load, act, sections, attention, stampNote, footnote, rowOf,
 } from "../mods/personal-cockpit/routines.js";
 import { host, reset, theme } from "./support/host/herdr.js";
-import { gh, apiCalls } from "./support/gh.js";
+import { gh, apiCalls, fails } from "./support/gh.js";
 import { issue, minutesAgo } from "./support/factories.js";
 
 const FILE = "/herdr/mods/personal-cockpit/routines.yml";
@@ -181,6 +181,59 @@ test("coordination_repo wins over the Kraken Tasks pick", async () => {
   host.files.set(FILE, fileFor(routine()));
   gh([["state=all", []]]);
   assert.equal((await load()).meta.repo, REPO);
+});
+
+test("the fallback names the panel it falls back to, so the screen can watch it", () => {
+  // Without that, a repo picked in Kraken Tasks reaches this panel only on its
+  // own sixty-second clock -- which is a minute of nothing after the one action
+  // offered as the way out of a 404.
+  assert.equal(repoFrom, "issues");
+});
+
+// ---- a queue it cannot reach ----------------------------------------------
+
+// The repo is resolved in here, from a file the screen does not read, and a
+// failed request leaves no `meta` to carry it. So it goes out on the error --
+// otherwise the panel can only name the repo it holds itself, which for this
+// one is none, and says "No access to null".
+
+test("a queue that 404s reports which repo was asked for", async () => {
+  host.files.set(FILE, fileFor(routine()));
+  gh([["state=all", fails("HTTP 404: Not Found")]]);
+
+  await assert.rejects(load(), (e) => {
+    assert.equal(e.kind, "not-found");
+    assert.equal(e.repo, REPO);
+    // The file named it outright, so no pick anywhere can change it.
+    assert.equal(e.repoPanel, null);
+    return true;
+  });
+});
+
+test("a queue that 404s says which pick decides it, when a pick does", async () => {
+  host.shared.set("cockpit.issues.repo", "acme/fallback");
+  host.files.set(FILE, yaml("routines:", "  - title: One", "    project: p", "    goal: g", "    acceptance: a"));
+  gh([["state=all", fails("HTTP 404: Not Found")]]);
+
+  await assert.rejects(load(), (e) => {
+    assert.equal(e.repo, "acme/fallback");
+    assert.equal(e.repoPanel, "issues");
+    return true;
+  });
+});
+
+test("any other failure carries the repo too, not only a 404", async () => {
+  // The panel only draws the repo for "no access", but the error is the one
+  // place that knows it either way -- and a `kind` is gh's answer to parse, not
+  // something to branch the reporting on here.
+  host.files.set(FILE, fileFor(routine()));
+  gh([["state=all", fails("could not resolve host")]]);
+
+  await assert.rejects(load(), (e) => {
+    assert.equal(e.kind, "error");
+    assert.equal(e.repo, REPO);
+    return true;
+  });
 });
 
 test("a routine with nothing in the queue is ready", async () => {

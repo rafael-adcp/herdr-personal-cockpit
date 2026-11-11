@@ -381,3 +381,13 @@ test("the example configs parse, and satisfy the panels that read them", async (
   const teamFile = parse(read(join(MOD, "team.example.yml")));
   assert.deepEqual(teamFile.problems, [], "team.example.yml does not parse");
 });
+
+test("the routines example names no queue, so a fresh file follows Kraken Tasks", async () => {
+  // Both installers and the gear seed `routines.yml` from this file, and an
+  // explicit `coordination_repo` wins over the repo picked in Kraken Tasks. So
+  // one named here is a repo nobody chose, on every fresh install -- and a
+  // 404 for anyone whose login cannot read it.
+  const { parse } = await import("../mods/personal-cockpit/yaml.js");
+  const { top } = parse(read(join(MOD, "routines.example.yml")));
+  assert.equal(top.coordination_repo, undefined);
+});

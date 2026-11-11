@@ -14,10 +14,15 @@
 
 # ---- file settings --------------------------------------------------------
 
-# The coordination repo: the private repo whose Issues are the queue. Optional
-# -- without it, the repo picked in the Kraken Tasks panel is used, which is
-# normally the same one.
-coordination_repo: rafael-adcp/personal-tasks
+# The coordination repo: the private repo whose Issues are the queue. Optional,
+# and left unset here on purpose -- without it the repo picked in the Kraken
+# Tasks panel is used, which is normally the same one and is the only one of the
+# two a shipped file can get right. Both installers and the gear seed
+# `routines.yml` from this file, so a repo named here would silently override
+# that pick on every fresh install, and 404 for anyone whose login cannot read
+# it. Uncomment it to point Routines at a different queue from that panel's.
+#
+# coordination_repo: acme/tasks
 
 
 # ---- the routines ---------------------------------------------------------

@@ -274,6 +274,11 @@ branches — written once and kept. Press `▶` in the row and it is opened in t
 queue, labelled and with its Goal and Acceptance already in it; a worker claims
 it from there.
 
+The queue is the repo picked in **Kraken Tasks**, so a fresh install needs no
+second answer. Set `coordination_repo` in the file to pin Routines to a
+different one — it wins where it is set, which is also why the shipped example
+leaves it commented out.
+
 They live in `routines.yml` **in the installed mod folder**, not in this repo:
 
 ```
