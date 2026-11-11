@@ -16,12 +16,12 @@
 
 import { View } from "gpui-kit";
 import { props } from "herdr";
-import { Drawer } from "./drawer.js";
-import { Gallery } from "./gallery.js";
-import { List } from "./list.js";
-import { Picker } from "./picker.js";
-import { Jira } from "./jira.js";
-import { QuerySettings } from "./jira-settings.js";
+import { Drawer } from "./screens/drawer.js";
+import { Gallery } from "./screens/gallery.js";
+import { List } from "./screens/list.js";
+import { Picker } from "./screens/picker.js";
+import { Jira } from "./jira/jira.js";
+import { QuerySettings } from "./jira/jira-settings.js";
 
 // A `kind` that is not here is a panel: the four panels name themselves with
 // it, and so does `herdr-app check`, which renders the mod with no props at

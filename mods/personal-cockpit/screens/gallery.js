@@ -17,11 +17,11 @@ import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { props, closeOverlay, theme } from "herdr";
 import { Drawer } from "./drawer.js";
-import { WIDE, badge, button, checkGlyph, header, rail, sectionHead, spinner } from "./kit.js";
-import * as issues from "./issues.js";
-import * as pulls from "./pulls.js";
-import * as routines from "./routines.js";
-import * as team from "./team.js";
+import { WIDE, badge, button, checkGlyph, header, rail, sectionHead, spinner } from "../kit/kit.js";
+import * as issues from "../panels/issues.js";
+import * as pulls from "../panels/pulls.js";
+import * as routines from "../panels/routines.js";
+import * as team from "../panels/team.js";
 
 // The width a panel is drawn at here: wider than WIDE, so rows draw their
 // second line. The narrow column beside it is under it, so both are visible.

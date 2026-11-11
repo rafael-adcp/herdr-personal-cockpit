@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { VERBS, groups, merge } from "../mods/personal-cockpit/urgent.js";
+import { VERBS, groups, merge } from "../mods/personal-cockpit/kit/urgent.js";
 
 const row = (verb, key, at = 0) => ({ key, verb, title: key, reason: "because", url: null, at });
 

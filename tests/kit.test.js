@@ -15,8 +15,8 @@ import assert from "node:assert/strict";
 import {
   WIDE, CELL,
   badge, button, spinner, rail, header, sectionHead, cell, checkGlyph, row, shell,
-} from "../mods/personal-cockpit/kit.js";
-import { RAIL_MAX } from "../mods/personal-cockpit/dock.js";
+} from "../mods/personal-cockpit/kit/kit.js";
+import { RAIL_MAX } from "../mods/personal-cockpit/kit/dock.js";
 import { theme } from "./support/host/herdr.js";
 import { handlerOf, countOf } from "./support/element.js";
 

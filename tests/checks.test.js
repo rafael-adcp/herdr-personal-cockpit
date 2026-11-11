@@ -8,7 +8,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { RED, RUNNING } from "../mods/personal-cockpit/checks.js";
+import { RED, RUNNING } from "../mods/personal-cockpit/kit/checks.js";
 
 // Every state GitHub's statusCheckRollup can be in, plus the absences a panel
 // has to survive.

@@ -8,10 +8,10 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import Cockpit from "../mods/personal-cockpit/main.js";
-import { Drawer } from "../mods/personal-cockpit/drawer.js";
-import { Gallery } from "../mods/personal-cockpit/gallery.js";
-import { List } from "../mods/personal-cockpit/list.js";
-import { Picker } from "../mods/personal-cockpit/picker.js";
+import { Drawer } from "../mods/personal-cockpit/screens/drawer.js";
+import { Gallery } from "../mods/personal-cockpit/screens/gallery.js";
+import { List } from "../mods/personal-cockpit/screens/list.js";
+import { Picker } from "../mods/personal-cockpit/screens/picker.js";
 import { host, reset } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
 import { tree, panelBlock, placedAt } from "./support/factories.js";

@@ -18,11 +18,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import * as pulls from "../mods/personal-cockpit/pulls.js";
-import * as issues from "../mods/personal-cockpit/issues.js";
-import * as routines from "../mods/personal-cockpit/routines.js";
-import * as team from "../mods/personal-cockpit/team.js";
-import { VERBS } from "../mods/personal-cockpit/urgent.js";
+import * as pulls from "../mods/personal-cockpit/panels/pulls.js";
+import * as issues from "../mods/personal-cockpit/panels/issues.js";
+import * as routines from "../mods/personal-cockpit/panels/routines.js";
+import * as team from "../mods/personal-cockpit/panels/team.js";
+import { VERBS } from "../mods/personal-cockpit/kit/urgent.js";
 import { label, minutesAgo, prNode, reviewRequest, teamPrNode } from "./support/factories.js";
 
 const PANELS = [

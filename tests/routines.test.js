@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import {
   validate, markerOf, bodyFor, labelsFor, repoFrom,
   load, act, sections, attention, stampNote, footnote, rowOf,
-} from "../mods/personal-cockpit/routines.js";
+} from "../mods/personal-cockpit/panels/routines.js";
 import { host, reset, theme } from "./support/host/herdr.js";
 import { gh, apiCalls, fails } from "./support/gh.js";
 import { issue, minutesAgo } from "./support/factories.js";

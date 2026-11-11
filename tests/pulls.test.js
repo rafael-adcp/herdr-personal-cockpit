@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { shape, sections, attention, stampNote, rowOf, load } from "../mods/personal-cockpit/pulls.js";
+import { shape, sections, attention, stampNote, rowOf, load } from "../mods/personal-cockpit/panels/pulls.js";
 import { host, reset, theme } from "./support/host/herdr.js";
 import { prNode, rollup, checkRun, statusContext, minutesAgo } from "./support/factories.js";
 

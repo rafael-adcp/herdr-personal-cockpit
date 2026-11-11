@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { parse } from "../mods/personal-cockpit/yaml.js";
+import { parse } from "../mods/personal-cockpit/kit/yaml.js";
 
 // ---- the five constructs --------------------------------------------------
 

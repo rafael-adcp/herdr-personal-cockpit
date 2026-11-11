@@ -6,19 +6,27 @@ import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { connectPi } from "../mods/personal-cockpit/jira-bridge.mjs";
+import { connectPi } from "../mods/personal-cockpit/jira/jira-bridge.mjs";
 
 const SERVER = "https://mcp.atlassian.com/v1/mcp";
 
-test("the flat bridge runs outside the repo with root ESM metadata and adjacent default config", () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "herdr-flat-jira-cli-")));
+test("the installed bridge runs outside the repo on mod-root ESM metadata, with the config a level up", () => {
+  // The shape the installers produce: the bridge and its model sit in `jira/`,
+  // while `package.json` and the person's `jira.config.json` stay at the mod
+  // root. So `jira-model.js` is a `.js` whose `"type": "module"` is only found
+  // by walking up out of its own folder, and the bridge's default config path
+  // has to climb the same way. Both were adjacent before and are not now.
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "herdr-installed-jira-cli-")));
   try {
-    for (const file of ["jira-bridge.mjs", "jira-model.js", "package.json"]) {
-      copyFileSync(join(import.meta.dirname, "../mods/personal-cockpit", file), join(dir, file));
+    const bridgeDir = join(dir, "jira");
+    mkdirSync(bridgeDir);
+    copyFileSync(join(import.meta.dirname, "../mods/personal-cockpit/package.json"), join(dir, "package.json"));
+    for (const file of ["jira-bridge.mjs", "jira-model.js"]) {
+      copyFileSync(join(import.meta.dirname, "../mods/personal-cockpit/jira", file), join(bridgeDir, file));
     }
     const saved = JSON.stringify({ site: "https://example.atlassian.net", cloudId: "10465e5c-dd46-47ec-a645-05ad3dab7ede", jql: "project = TEST" });
     writeFileSync(join(dir, "jira.config.json"), saved);
-    const run = (args = []) => spawnSync(process.execPath, ["--no-experimental-detect-module", join(dir, "jira-bridge.mjs"), ...args], {
+    const run = (args = []) => spawnSync(process.execPath, ["--no-experimental-detect-module", join(bridgeDir, "jira-bridge.mjs"), ...args], {
       cwd: tmpdir(), encoding: "utf8", env: { ...process.env, PI_CODING_AGENT_DIR: join(dir, "missing-pi") },
     });
     const result = run();
@@ -77,7 +85,7 @@ function fixture() {
 test("the source CLI returns search JSON, honors JQL overrides and sanitizes failures", () => {
   const f = fixture();
   try {
-    const bridge = join(import.meta.dirname, "../mods/personal-cockpit/jira-bridge.mjs");
+    const bridge = join(import.meta.dirname, "../mods/personal-cockpit/jira/jira-bridge.mjs");
     const config = join(f.dir, "jira.config.json");
     const saved = JSON.stringify({ site: "https://example.atlassian.net", cloudId: "10465e5c-dd46-47ec-a645-05ad3dab7ede", jql: "project = TEST" });
     f.write("jira.config.json", saved);

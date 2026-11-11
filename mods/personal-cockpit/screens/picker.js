@@ -12,9 +12,9 @@
 import { div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { props, closeOverlay, theme } from "herdr";
-import { repoList } from "./github.js";
-import { choose, forget, recent, looksLikeRepo } from "./config.js";
-import { button } from "./kit.js";
+import { repoList } from "../kit/github.js";
+import { choose, forget, recent, looksLikeRepo } from "../kit/config.js";
+import { button } from "../kit/kit.js";
 
 const DEBOUNCE = 350;
 const SHOWN = 8;

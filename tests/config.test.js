@@ -7,7 +7,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { looksLikeRepo, repoOf, recent, choose, forget } from "../mods/personal-cockpit/config.js";
+import { looksLikeRepo, repoOf, recent, choose, forget } from "../mods/personal-cockpit/kit/config.js";
 import { host, reset } from "./support/host/herdr.js";
 
 beforeEach(() => reset());

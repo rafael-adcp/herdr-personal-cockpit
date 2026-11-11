@@ -24,28 +24,39 @@ files — a change that makes the recipe wrong is unfinished.
 
 ## The screens
 
-One mod, one entry point. `main.js` is required and `mod.json` says where
-it first appears. All modules live at the mod root, including Jira's
-`jira-*` helpers and separate `jira-bridge.mjs` Node process.
-There is no second mod, manifest, or copy of the panel controls:
+One mod, one entry point. `main.js` is required at the mod root and `mod.json`
+says where it first appears. Everything else is grouped into four folders --
+`kit/` what every screen shares, `screens/` what a `kind` resolves to,
+`panels/` the four list sources, `jira/` the optional screen with its own
+model, adapter, dialog and Node process. A mod may hold subfolders and import
+freely between them; what it cannot do is import out of its own folder, which
+is why this is one mod and not five. There is no second mod, manifest, or copy
+of the panel controls:
 
 | File | Its one job |
 |---|---|
 | `main.js` | picks the screen `props.kind` asked for |
-| `list.js` | runs whichever panel it was given, and publishes its urgent rows |
-| `drawer.js` | the floating "Needs you" drawer |
-| `gallery.js` | every piece of chrome, on sample data |
-| `picker.js` | the repo dialog |
-| `jira.js`, `jira-*.js`, `jira-bridge.mjs` | optional Jira screen, JQL dialog and read-only provider bridge; reuses `kit.js`, `dock.js` and `conf.js` |
-| `pulls.js` `issues.js` `routines.js` `team.js` | the four panels — one role, four players |
-| `dock.js` | where a panel lives, and how it moves |
-| `kit.js` | the chrome a panel draws |
-| `urgent.js` | which of four kinds of "your move" comes first |
-| `checks.js` | what a commit's check rollup means |
-| `github.js` | everything that talks to GitHub, through `gh`, and demo mode |
-| `config.js` | which repo a panel watches |
-| `conf.js` | config paths, YAML reads and shared YAML/JSON file opener |
-| `yaml.js` | reads the five constructs those files use |
+| `screens/list.js` | runs whichever panel it was given, and publishes its urgent rows |
+| `screens/drawer.js` | the floating "Needs you" drawer |
+| `screens/gallery.js` | every piece of chrome, on sample data |
+| `screens/picker.js` | the repo dialog |
+| `jira/jira.js`, `jira/jira-*.js`, `jira/jira-bridge.mjs` | optional Jira screen, JQL dialog and read-only provider bridge; reuses `kit/kit.js`, `kit/dock.js` and `kit/conf.js` |
+| `panels/pulls.js` `panels/issues.js` `panels/routines.js` `panels/team.js` | the four panels — one role, four players |
+| `kit/dock.js` | where a panel lives, and how it moves |
+| `kit/kit.js` | the chrome a panel draws |
+| `kit/urgent.js` | which of four kinds of "your move" comes first |
+| `kit/checks.js` | what a commit's check rollup means |
+| `kit/github.js` | everything that talks to GitHub, through `gh`, and demo mode |
+| `kit/config.js` | which repo a panel watches |
+| `kit/conf.js` | config paths, YAML reads and shared YAML/JSON file opener |
+| `kit/yaml.js` | reads the five constructs those files use |
+
+Assets, `mod.json`, `package.json` and the person's config files stay at the
+mod root: an asset path is resolved from the Herdr home rather than from the
+file that names it, `package.json` is what makes every `.js` beneath it load as
+ESM, and both installers preserve the config files by top-level basename. The
+app also writes a `gpui-kit.d.ts` into each folder holding JavaScript, so there
+is one per subfolder; `.gitignore` and both installers exclude them by name.
 
 The import lists are worth reading as the design. `kit.js` imports from the
 toolkit and nothing from `herdr`: it takes a theme and some data and returns an

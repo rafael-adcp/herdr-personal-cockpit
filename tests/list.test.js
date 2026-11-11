@@ -9,8 +9,8 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { List } from "../mods/personal-cockpit/list.js";
-import { shareKey } from "../mods/personal-cockpit/urgent.js";
+import { List } from "../mods/personal-cockpit/screens/list.js";
+import { shareKey } from "../mods/personal-cockpit/kit/urgent.js";
 import { host, reset, theme } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
 import { gh, apiCalls, fails } from "./support/gh.js";

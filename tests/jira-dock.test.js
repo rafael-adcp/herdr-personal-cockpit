@@ -2,8 +2,8 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import * as dock from "../mods/personal-cockpit/dock.js";
-import { Jira } from "../mods/personal-cockpit/jira.js";
+import * as dock from "../mods/personal-cockpit/kit/dock.js";
+import { Jira } from "../mods/personal-cockpit/jira/jira.js";
 import { host, reset } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
 import { handlerOf, textOf } from "./support/element.js";
@@ -22,9 +22,9 @@ const byId = (element, id) => {
 beforeEach(() => reset({ layout: tree() }));
 
 test("Jira references shared chrome assets and has no separate mod or duplicated layout", () => {
-  const source = readFileSync(new URL("../mods/personal-cockpit/jira.js", import.meta.url), "utf8");
-  assert.match(source, /import .* from "\.\/kit\.js"/);
-  assert.match(source, /import .* from "\.\/dock\.js"/);
+  const source = readFileSync(new URL("../mods/personal-cockpit/jira/jira.js", import.meta.url), "utf8");
+  assert.match(source, /import .* from "\.\.\/kit\/kit\.js"/);
+  assert.match(source, /import .* from "\.\.\/kit\/dock\.js"/);
   assert.ok(!source.includes("mods/jira-tickets/"));
   assert.ok(!source.includes("const action ="));
   assert.equal(existsSync(new URL("../mods/jira-tickets", import.meta.url)), false);

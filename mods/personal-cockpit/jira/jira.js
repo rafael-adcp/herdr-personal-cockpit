@@ -4,8 +4,8 @@ import { div } from "gpui-kit";
 import { v_flex } from "gpui-base";
 import { layout, nextCommand, openOverlay, props, readTextFile, theme } from "herdr";
 import { DEFAULT_JQL, sections } from "./jira-model.js";
-import { COLLAPSED_MAX, RAIL_MAX, hostBlockFor, minimise, moveTo, placeOf } from "./dock.js";
-import { button, cell, header, rail, row, sectionHead, shell } from "./kit.js";
+import { COLLAPSED_MAX, RAIL_MAX, hostBlockFor, minimise, moveTo, placeOf } from "../kit/dock.js";
+import { button, cell, header, rail, row, sectionHead, shell } from "../kit/kit.js";
 import { configPath, executeQuery } from "./jira-query.js";
 
 const INTERVAL = 180000;

@@ -99,7 +99,12 @@ export function publicError(error) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const result = await poll(process.argv[2] ?? fileURLToPath(new URL("./jira.config.json", import.meta.url)), connectPi, process.argv[3]);
+    // `..`: this file is in `jira/`, the config is at the mod root. It stays
+    // there because it is the person's -- `conf.js`'s `pathOf` names it there,
+    // and both installers preserve it across a reinstall by top-level basename,
+    // which cannot reach into a subfolder. jira-query.js always passes the path
+    // explicitly; this default is for running the bridge by hand.
+    const result = await poll(process.argv[2] ?? fileURLToPath(new URL("../jira.config.json", import.meta.url)), connectPi, process.argv[3]);
     process.stdout.write(JSON.stringify(result) + "\n");
   } catch (error) {
     process.stdout.write(JSON.stringify({ error: publicError(error) }) + "\n");

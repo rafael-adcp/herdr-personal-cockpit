@@ -7,8 +7,8 @@
 // `rafael-adcp/personal-tasks` was baked in here until this mod moved to a repo.
 
 import { div } from "gpui-kit";
-import { rest, issueTemplates, ago, agoShort } from "./github.js";
-import { row } from "./kit.js";
+import { rest, issueTemplates, ago, agoShort } from "../kit/github.js";
+import { row } from "../kit/kit.js";
 
 export const panel = "issues";
 export const title = "Kraken Tasks";

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 
 import {
   newUrl, labelColor, sections, attention, footnote, stampNote, cached, save, load, rowOf,
-} from "../mods/personal-cockpit/issues.js";
+} from "../mods/personal-cockpit/panels/issues.js";
 import { reset, theme } from "./support/host/herdr.js";
 import { gh, apiCalls } from "./support/gh.js";
 import { issue, label, minutesAgo } from "./support/factories.js";

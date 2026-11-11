@@ -13,7 +13,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { ghCommand, resolve, graphql, rest, createIssue, repoList, viewer, ago, agoShort } from "../mods/personal-cockpit/github.js";
+import { ghCommand, resolve, graphql, rest, createIssue, repoList, viewer, ago, agoShort } from "../mods/personal-cockpit/kit/github.js";
 import { host, reset } from "./support/host/herdr.js";
 import { gh, apiCalls } from "./support/gh.js";
 

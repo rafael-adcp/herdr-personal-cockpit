@@ -18,10 +18,10 @@
 
 import { div } from "gpui-kit";
 import { run } from "herdr";
-import { ago, agoShort, createIssue, rest } from "./github.js";
-import { repoOf } from "./config.js";
-import { CELL, cell, row, spinner } from "./kit.js";
-import * as conf from "./conf.js";
+import { ago, agoShort, createIssue, rest } from "../kit/github.js";
+import { repoOf } from "../kit/config.js";
+import { CELL, cell, row, spinner } from "../kit/kit.js";
+import * as conf from "../kit/conf.js";
 
 export const panel = "routines";
 export const title = "Routines";
