@@ -4,6 +4,11 @@
 // drifted: only one side kept a cache, only one had a keyboard cursor, only one
 // held its last good list when a refresh failed. Now both get all three,
 // because there is one of each.
+//
+// Then it existed twice again, when Jira arrived as a screen of its own. It is
+// a source now (jira/jira.js), and the few things it did that this did not --
+// a refresh asked for mid-poll is kept, the cursor follows its row across a
+// reload -- are here for every panel rather than there for one.
 
 import { div } from "gpui-kit";
 import { v_flex } from "gpui-base";
@@ -26,11 +31,13 @@ import * as pulls from "../panels/pulls.js";
 import * as issues from "../panels/issues.js";
 import * as routines from "../panels/routines.js";
 import * as team from "../panels/team.js";
+import * as jira from "../jira/jira.js";
 
 /** The panels, by the `props.kind` that names one. Exported so the drawer can
  *  select its sources from this roster and read their published urgent rows
- *  without running any of them. */
-export const SOURCES = { pulls, issues, routines, team };
+ *  without running any of them. Jira is last and optional: no shipped layout
+ *  has a block for it, and it publishes no rows. */
+export const SOURCES = { pulls, issues, routines, team, jira };
 
 // A mod command reaches every copy on screen, which is what makes `refresh`
 // useful and what would make `kit` open four identical dialogs at once. One
@@ -42,6 +49,10 @@ const OPENS_KIT = Object.values(SOURCES)[0].panel;
 // past, short enough that it is gone before it could describe anything stale.
 const DONE_MS = 6000;
 
+// What makes a row the same row after a reload. Every source's items have a
+// page; routines' also have a `key`, because a broken one has no page at all.
+const idOf = (item) => item?.key ?? item?.url ?? null;
+
 export class List {
   constructor(view, cx) {
     const p = props() ?? {};
@@ -50,7 +61,7 @@ export class List {
     // Only for a repo with several issue forms where the layout wants one
     // named; with none or one, the right answer is found rather than told.
     this.template = p.template ?? null;
-    this.heightKey = `cockpit.${this.source.panel}.height`;
+    this.heightKey = this.source.heightKey ?? `cockpit.${this.source.panel}.height`;
 
     this.items = [];
     this.meta = null;
@@ -68,6 +79,8 @@ export class List {
     this.done = null;
     this.fetchedAt = null;
     this.busy = false;
+    // A refresh somebody asked for while one was in flight. See `requestRefresh`.
+    this.pending = false;
     this.width = 0;
     this.at = 0;
 
@@ -97,9 +110,18 @@ export class List {
     cx.spawn(async (cx) => {
       for (;;) {
         const command = await nextCommand();
+        // A source may answer to command names of its own. A mod command
+        // reaches every copy on screen, so anything that should move or
+        // reconfigure one panel has to be named for that panel -- and a source
+        // that names its own `configure` is left out of the shared one, which
+        // is the repo picker and would be a dialog it has no use for.
+        const own = this.source.commands ?? {};
         if (command === "focus") this.handle.focus();
-        else if (command === "refresh") this.refresh(cx);
-        else if (command === "configure") this.configure();
+        else if (command === "refresh" || command === own.refresh) this.requestRefresh(cx);
+        else if (own.configure && command === own.configure) this.configureWith(cx);
+        else if (command === "configure" && !own.configure) this.configure();
+        else if (command === own.left) this.move("sidebar");
+        else if (command === own.right) this.move("right");
         else if (command === "new") this.openNew(cx);
         else if (command === "kit" && this.source.panel === OPENS_KIT) this.openKit();
         cx.notify();
@@ -126,8 +148,21 @@ export class List {
     setShared(shareKey(this.source.panel), this.state === "ok" ? this.source.urgent(this.items) : []);
   }
 
+  /** A refresh somebody asked for: the button, the key, a command. The poll's
+   *  own timer calls `refresh` and is simply dropped when one is in flight --
+   *  another is coming. A request is different: it usually means something
+   *  changed (Jira's query editor saves and then asks), and the load in flight
+   *  started before it did. So one more runs when that one lands. One, however
+   *  many times it was asked for. */
+  requestRefresh(cx) {
+    if (this.busy) this.pending = true;
+    else this.refresh(cx);
+  }
+
   refresh(cx) {
     if (this.busy) return;
+    // Whatever was asked for, this load is newer than the asking.
+    this.pending = false;
     if (this.source.needsRepo && !this.repo) {
       this.state = "no-repo";
       this.publish();
@@ -138,8 +173,10 @@ export class List {
     cx.spawn(async (cx) => {
       try {
         const { items, meta } = await this.source.load({ repo: this.repo });
+        const held = idOf(this.strip().pickable[this.at]);
         this.items = items;
         this.meta = meta;
+        this.follow(held);
         this.state = "ok";
         this.error = null;
         this.stale = null;
@@ -150,7 +187,13 @@ export class List {
         const message = String(e?.message ?? e);
         // One failed poll -- a dropped connection, a TLS timeout -- shouldn't
         // blank a list that was right a moment ago. Keep it and say it's old.
-        if (kind === "error" && this.state === "ok" && this.items.length) {
+        //
+        // Only that kind, and only a list with something in it: a login problem
+        // gives the screen to the button that fixes it. A source with no such
+        // button says `keepsLastGood`, and keeps whatever loaded -- an empty
+        // list included -- through any failure at all.
+        const kept = this.source.keepsLastGood || (kind === "error" && this.items.length);
+        if (this.state === "ok" && kept) {
           this.stale = message;
         } else {
           this.state = kind;
@@ -168,9 +211,23 @@ export class List {
         this.acting = null;
         this.publish();
         cx.notify();
+        if (this.pending) this.refresh(cx);
       }
     });
     cx.notify();
+  }
+
+  /** Keep the cursor on the row it was on. A reload reorders -- a list sorted
+   *  by last update moves a row every time somebody touches it -- and a cursor
+   *  that stays at "third" is then on a different thing than the one you were
+   *  about to open. A row that is gone leaves the index alone, and `render`
+   *  clamps it. */
+  follow(held) {
+    if (held === null) return;
+    const { pickable } = this.strip();
+    if (idOf(pickable[this.at]) === held) return;
+    const at = pickable.findIndex((item) => idOf(item) === held);
+    if (at >= 0) this.at = at;
   }
 
   // The repo changed under us: a pick in this panel's own dialog, or in another
@@ -277,6 +334,19 @@ export class List {
 
   terminal(argv) {
     run("terminal.open", { argv, place: "tab" });
+  }
+
+  /** The layout block showing this copy, or null for a pane or an overlay. */
+  host(tree = layout()) {
+    return hostBlockFor(tree, this.source.panel, this.node) ?? find(tree, this.source.panel);
+  }
+
+  /** To the other column, when there is one to go to -- the same condition the
+   *  header's arrow is drawn on, for a command that arrives without it. */
+  move(side) {
+    const tree = layout();
+    const host = this.host(tree);
+    if (placeOf(tree, host)) moveTo(host, side);
   }
 
   // ---- shape --------------------------------------------------------------
@@ -406,7 +476,7 @@ export class List {
     }
 
     const tree = layout();
-    const host = hostBlockFor(tree, source.panel, this.node) ?? find(tree, source.panel);
+    const host = this.host(tree);
     const place = placeOf(tree, host);
     const collapsed = Boolean(host) && host.size?.px <= COLLAPSED_MAX;
     // Go by this copy's own measured width when it has one, not by a node name:
@@ -420,6 +490,9 @@ export class List {
     const attention = source.attention(this.items);
     const pinned = source.needsRepo && repoOf(source.panel).pinned;
     const newTask = this.newUrl();
+    // The list's own page in a browser, for a source that has one (Jira's
+    // search). Only once something loaded: before that there is no URL to open.
+    const browseUrl = source.browse ? source.browse(this.meta) : null;
 
     // A source may bring its own settings action -- routines opens the file it
     // is configured by. Otherwise the gear is the repo picker, for a panel that
@@ -435,6 +508,9 @@ export class List {
       : this.state === "no-auth" ? "sign in"
       : this.state === "not-found" ? "no access"
       : this.state === "error" ? "failed"
+      // A kind only its own source knows (Jira's `auth`, `setup`): the word is
+      // the label, and the message is in the tooltip and under the header.
+      : this.state !== "ok" && this.state !== "loading" ? this.state
       : this.stale ? "stale" : null;
 
     const note = source.stampNote ? source.stampNote(this.meta, this.repo) : null;
@@ -458,7 +534,9 @@ export class List {
               source.configureTip ?? (this.repo ? `Watching ${this.repo} — change it` : "Choose a repository"),
             onNew: newTask ? (c) => this.openNew(c) : null,
             newTip: `${source.newLabel} in ${this.repo}`,
-            onRefresh: (c) => this.refresh(c),
+            onRefresh: (c) => this.requestRefresh(c),
+            onBrowse: browseUrl ? (c) => c.open_url(browseUrl) : null,
+            browseTip: source.browseTip,
             onMove: (side) => moveTo(host, side),
             onMinimise: () => minimise(host, collapsed, this.heightKey),
           }),
@@ -498,6 +576,7 @@ export class List {
                     ? sectionHead(t, r.label, r.count)
                     : source.rowOf(t, r.item, {
                         wide,
+                        width: this.width,
                         repo: this.repo,
                         selected: r.item === selected,
                         acting: this.acting === r.item.key,
@@ -551,7 +630,7 @@ export class List {
       }
     }
 
-    return shell(t, {
+    const root = shell(t, {
       id: `cockpit-${source.panel}`,
       handle: this.handle,
       body,
@@ -562,7 +641,12 @@ export class List {
       },
       onKey: (e, cx) => {
         if (e.key === "r") {
-          this.refresh(cx);
+          this.requestRefresh(cx);
+          cx.stop_propagation();
+          return;
+        }
+        if (e.key === "o" && browseUrl) {
+          cx.open_url(browseUrl);
           cx.stop_propagation();
           return;
         }
@@ -585,5 +669,9 @@ export class List {
         cx.notify();
       },
     });
+    // For a source that asks: a press anywhere on the panel takes the keyboard.
+    // Not for all of them -- the GitHub panels leave it in the terminal you
+    // were typing in, and a row there opens a browser tab either way.
+    return source.focusOnPress ? root.on_mouse_down("left", () => this.handle.focus()) : root;
   }
 }

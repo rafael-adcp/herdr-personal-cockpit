@@ -27,7 +27,7 @@ files — a change that makes the recipe wrong is unfinished.
 One mod, one entry point. `main.js` is required at the mod root and `mod.json`
 says where it first appears. Everything else is grouped into five folders --
 `kit/` what every screen shares, `screens/` what a `kind` resolves to,
-`panels/` the four list sources, `jira/` the optional screen with its own
+`panels/` the four GitHub list sources, `jira/` the optional fifth with its own
 model, adapter, dialog and Node process, and `icons/` the art. A mod may hold
 subfolders and import freely between them; what it cannot do is import out of
 its own folder, which is why this is one mod and not five. There is no second
@@ -40,7 +40,7 @@ mod, manifest, or copy of the panel controls:
 | `screens/drawer.js` | the floating "Needs you" drawer |
 | `screens/gallery.js` | every piece of chrome, on sample data |
 | `screens/picker.js` | the repo dialog |
-| `jira/jira.js`, `jira/jira-*.js`, `jira/jira-bridge.mjs` | optional Jira screen, JQL dialog and read-only provider bridge; reuses `kit/kit.js`, `kit/dock.js` and `kit/conf.js` |
+| `jira/jira.js`, `jira/jira-*.js`, `jira/jira-bridge.mjs` | optional Jira panel (a list source like the four below), its JQL dialog and read-only provider bridge |
 | `panels/pulls.js` `panels/issues.js` `panels/routines.js` `panels/team.js` | the four panels — one role, four players |
 | `kit/dock.js` | where a panel lives, and how it moves |
 | `kit/kit.js` | the chrome a panel draws |
@@ -81,9 +81,13 @@ pick up. `tests/structure.test.js` asserts all of it.
 The four panels are interchangeable to `list.js`, so they are players of one
 role rather than four special cases: each exports the same `load`, `sections`,
 `attention`, `urgent` and `rowOf`, and adding a fifth means writing a module and
-naming it in `list.js`. Nothing else has to know. Jira has its own screen
-because its polling/auth/error contract differs; it shares the visual and
-layout primitives rather than changing the four GitHub source contracts.
+naming it in `list.js`. Nothing else has to know. Jira is that fifth: it began
+as a screen of its own, on the grounds that its polling, auth and error
+contract differs, and was a second copy of the refresh, cursor, keys and render
+for as long as it stayed one. What differs is now said by the source instead,
+in optional members the four GitHub panels simply do not export --
+`keepsLastGood`, `commands`, `browse`, `heightKey`, `focusOnPress` -- so none
+of their contracts changed. `tests/panel-role.test.js` runs against all five.
 
 ## Why one mod
 

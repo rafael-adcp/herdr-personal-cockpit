@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Jira as JiraTickets } from "../mods/personal-cockpit/jira/jira.js";
+import * as jira from "../mods/personal-cockpit/jira/jira.js";
+import { List } from "../mods/personal-cockpit/screens/list.js";
 import Cockpit from "../mods/personal-cockpit/main.js";
 import { configOf, DEFAULT_JQL, fetchIssues, payloadOf, sections, shape, searchUrl, PanelError } from "../mods/personal-cockpit/jira/jira-model.js";
 import { connectPi, piPackage, poll, publicError } from "../mods/personal-cockpit/jira/jira-bridge.mjs";
 import { host, reset } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
-import { callsOf, handlerOf, textOf } from "./support/element.js";
+import { handlerOf, textOf } from "./support/element.js";
 
 const site = "https://example.atlassian.net";
 const config = { site, cloudId: "10465e5c-dd46-47ec-a645-05ad3dab7ede", jql: DEFAULT_JQL };
@@ -24,12 +25,23 @@ const byId = (element, id) => {
   for (const child of node.kids) { const found = byId(child, id); if (found) return found; }
 };
 
+const CONFIG = "/herdr/mods/personal-cockpit/jira.config.json";
+const POLL = 180000;
+
+/** The Jira panel: the list screen, given the `kind` a layout block would. */
+function panel(options) {
+  host.props = { kind: "jira" };
+  const context = cx(options);
+  return { context, list: new List({}, context) };
+}
+
 beforeEach(() => { reset(); localStorage.clear(); host.onExec = () => success(); });
 
-test("Jira is a screen of the same Cockpit, with no second mod or layout required", () => {
+test("Jira is a panel of the same Cockpit: the list screen, with Jira as its source", () => {
   host.props = { kind: "jira" };
   const mod = new Cockpit(host.props, cx());
-  assert.ok(mod.screen instanceof JiraTickets);
+  assert.ok(mod.screen instanceof List);
+  assert.equal(mod.screen.source, jira);
   assert.ok(textOf(mod.render(cx())).includes("My Jira tickets"));
 });
 
@@ -156,137 +168,192 @@ test("missing Pi fails with setup instructions, not a credential dump", async ()
   await assert.rejects(() => connectPi("/nonexistent-herdr-jira-test"), (e) => e.kind === "setup");
 });
 
-test("native view loads through a short-lived Node helper and polls gently", async () => {
-  const context = cx({ spawn: "run" }); const view = new JiraTickets({}, context);
-  assert.equal(view.busy, true); await context.settle();
-  assert.equal(view.items.length, 1); assert.equal(view.error, null); assert.equal(view.busy, false);
-  assert.equal(context.timers[0].ms, 180000);
-  assert.deepEqual(host.exec[0], { command: "node", args: ["/herdr/mods/personal-cockpit/jira/jira-bridge.mjs", "/herdr/mods/personal-cockpit/jira.config.json"] });
-  assert.ok(textOf(view.render(context)).includes("My Jira tickets"));
-  assert.ok(textOf(view.render(context)).includes("TEST-1"));
-  await context.tick(180000); assert.equal(host.exec.length, 2);
+// ---- the panel ------------------------------------------------------------
+//
+// Jira has no screen of its own: these drive list.js with Jira as its source.
+// What is asserted is what the standalone screen promised, so that becoming a
+// source cost none of it.
+
+test("the panel loads through a short-lived Node helper and polls gently", async () => {
+  const { context, list } = panel({ spawn: "run" });
+  assert.equal(list.busy, true); await context.settle();
+  assert.equal(list.items.length, 1); assert.equal(list.state, "ok"); assert.equal(list.busy, false);
+  assert.equal(context.timers[0].ms, POLL);
+  assert.deepEqual(host.exec[0], { command: "node", args: ["/herdr/mods/personal-cockpit/jira/jira-bridge.mjs", CONFIG] });
+  assert.ok(textOf(list.render(context)).includes("My Jira tickets"));
+  assert.ok(textOf(list.render(context)).includes("TEST-1"));
+  await context.tick(POLL); assert.equal(host.exec.length, 2);
 });
 
 test("the desktop can use an absolute Node path without a shell or PATH changes", async () => {
-  host.files.set("/herdr/mods/personal-cockpit/jira.config.json", JSON.stringify({ ...config, node: "/custom/node" }));
-  const context = cx({ spawn: "run" }); const view = new JiraTickets({}, context); await context.settle();
-  assert.equal(host.exec[0].command, "/custom/node"); assert.equal(view.error, null);
-  host.files.set("/herdr/mods/personal-cockpit/jira.config.json", JSON.stringify({ node: "" }));
-  await context.tick(180000); assert.match(view.stale.message, /Node.js executable/);
+  host.files.set(CONFIG, JSON.stringify({ ...config, node: "/custom/node" }));
+  const { context, list } = panel({ spawn: "run" }); await context.settle();
+  assert.equal(host.exec[0].command, "/custom/node"); assert.equal(list.state, "ok");
+  host.files.set(CONFIG, JSON.stringify({ node: "" }));
+  await context.tick(POLL); assert.match(list.stale, /Node.js executable/);
   assert.equal(host.exec.length, 1);
-  host.files.set("/herdr/mods/personal-cockpit/jira.config.json", JSON.stringify({ site }));
-  await context.tick(180000); assert.equal(host.exec.at(-1).command, "node");
+  host.files.set(CONFIG, JSON.stringify({ site }));
+  await context.tick(POLL); assert.equal(host.exec.at(-1).command, "node");
 });
 
 test("a refresh already running cannot overlap another", () => {
-  const context = cx(); const view = new JiraTickets({}, context); const before = context.spawned.length;
-  view.refresh(context); assert.equal(context.spawned.length, before);
+  const { context, list } = panel(); const before = context.spawned.length;
+  list.refresh(context); assert.equal(context.spawned.length, before);
 });
 
 test("failed refreshes preserve the last good list, including a successful empty list", async () => {
   for (const items of [[shape(issue(), site)], []]) {
     host.onExec = () => success(answer(items));
-    const context = cx({ spawn: "run" }); const view = new JiraTickets({}, context); await context.settle();
-    host.onExec = () => fail("auth"); await context.tick(180000);
-    assert.equal(view.items.length, items.length); assert.equal(view.error, null); assert.equal(view.stale.kind, "auth");
-    assert.ok(textOf(view.render(context)).includes("stale"));
-    host.onExec = () => success(answer([])); await context.tick(180000);
-    assert.equal(view.stale, null); assert.equal(view.items.length, 0);
+    const { context, list } = panel({ spawn: "run" }); await context.settle();
+    // Not the one kind the GitHub panels keep a list through: Jira keeps it
+    // through any of them.
+    host.onExec = () => fail("auth"); await context.tick(POLL);
+    assert.equal(list.items.length, items.length); assert.equal(list.state, "ok"); assert.equal(list.stale, "Read failed");
+    const text = textOf(list.render(context));
+    assert.ok(text.includes("stale"));
+    assert.ok(text.some((line) => line.startsWith("Couldn't refresh")));
+    host.onExec = () => success(answer([])); await context.tick(POLL);
+    assert.equal(list.stale, null); assert.equal(list.items.length, 0);
   }
 });
 
-test("first-load failures have retry and configuration controls", async () => {
+test("first-load failures say what failed, under their own name, with retry and the gear", async () => {
   host.onExec = () => fail("auth");
-  const context = cx({ spawn: "run" }); const view = new JiraTickets({}, context); await context.settle();
-  const rendered = view.render(context);
-  assert.ok(textOf(rendered).includes("Read failed")); assert.ok(byId(rendered, "jira-retry"));
-  host.onExec = () => success(); handlerOf(byId(rendered, "jira-retry"), "on_click")({}, context); await context.settle();
-  assert.equal(view.error, null); assert.equal(context.stopped, 0);
+  const { context, list } = panel({ spawn: "run" }); await context.settle();
+  const rendered = list.render(context);
+  assert.equal(list.state, "auth");
+  assert.ok(textOf(rendered).includes("Read failed"));
+  assert.ok(textOf(rendered).includes("auth"), "the header names a failure only Jira knows");
+  assert.ok(byId(rendered, "cockpit-jira-retry")); assert.ok(byId(rendered, "cockpit-jira-configure"));
+  host.onExec = () => success(); handlerOf(byId(rendered, "cockpit-jira-retry"), "on_click")({}, context); await context.settle();
+  assert.equal(list.state, "ok"); assert.equal(list.error, null);
 });
 
 test("invalid helper output, nonzero exits and launch failures are visible", async () => {
   for (const fn of [() => ({ code: 1, stdout: "invalid" }), () => ({ code: 1, stdout: "{}" }), () => { throw new Error("node missing"); }]) {
-    host.onExec = fn; const context = cx({ spawn: "run" }); const view = new JiraTickets({}, context); await context.settle();
-    assert.equal(view.error.kind, "error"); assert.ok(view.error.message);
+    host.onExec = fn; const { context, list } = panel({ spawn: "run" }); await context.settle();
+    assert.equal(list.state, "error"); assert.ok(list.error);
+    assert.ok(textOf(list.render(context)).includes(list.error));
   }
 });
 
 test("rows, search button and keyboard open only browser URLs", async () => {
   const items = [shape(issue("T-1"), site), shape(issue("T-2"), site)];
   host.onExec = () => success(answer(items));
-  const context = cx({ spawn: "run" }); const view = new JiraTickets({}, context); await context.settle();
-  handlerOf(byId(view.render(context), "jira-T-1"), "on_click")({}, context);
+  const { context, list } = panel({ spawn: "run" }); await context.settle();
+  handlerOf(byId(list.render(context), "jira-T-1"), "on_click")({}, context);
   assert.equal(context.opened.at(-1), `${site}/browse/T-1`);
-  const key = handlerOf(view.render(context), "on_key_down");
-  key({ key: "down" }, context); assert.equal(view.at, 1);
-  handlerOf(view.render(context), "on_key_down")({ key: "enter" }, context); assert.equal(context.opened.at(-1), `${site}/browse/T-2`);
-  key({ key: "up" }, context); assert.equal(view.at, 0);
+  const key = handlerOf(list.render(context), "on_key_down");
+  key({ key: "down" }, context); assert.equal(list.at, 1);
+  handlerOf(list.render(context), "on_key_down")({ key: "enter" }, context); assert.equal(context.opened.at(-1), `${site}/browse/T-2`);
+  key({ key: "up" }, context); assert.equal(list.at, 0);
   key({ key: "o" }, context); assert.equal(context.opened.at(-1), searchUrl(config));
-  handlerOf(byId(view.render(context), "jira-browser"), "on_click")({}, context); assert.equal(context.opened.at(-1), searchUrl(config));
+  handlerOf(byId(list.render(context), "cockpit-jira-browser"), "on_click")({}, context); assert.equal(context.opened.at(-1), searchUrl(config));
+  assert.equal(context.opened.length, 4);
   const n = context.stopped; key({ key: "x" }, context); assert.equal(context.stopped, n);
   assert.equal(host.run.length, 0, "opening a ticket must not touch terminals or Jira state");
 });
 
-test("refresh keeps the selected key and clamps a removed selection", async () => {
-  const items = [shape(issue("T-1"), site), shape(issue("T-2"), site)];
+test("there is no search to open until one has loaded", async () => {
+  host.onExec = () => fail("setup");
+  const { context, list } = panel({ spawn: "run" }); await context.settle();
+  const rendered = list.render(context);
+  assert.equal(byId(rendered, "cockpit-jira-browser"), undefined);
+  handlerOf(rendered, "on_key_down")({ key: "o" }, context);
+  assert.equal(context.opened.length, 0);
+});
+
+test("the cursor follows its ticket across a refresh that reorders, and is clamped when it is gone", async () => {
+  const items = ["T-1", "T-2", "T-3"].map((key) => shape(issue(key), site));
   host.onExec = () => success(answer(items));
-  const context = cx({ spawn: "run" }); const view = new JiraTickets({}, context); await context.settle();
-  handlerOf(view.render(context), "on_key_down")({ key: "down" }, context);
-  await context.tick(180000); assert.equal(view.at, 1);
-  host.onExec = () => success(answer([items[0]])); await context.tick(180000); assert.equal(view.at, 0);
+  const { context, list } = panel({ spawn: "run" }); await context.settle();
+  const key = handlerOf(list.render(context), "on_key_down");
+  key({ key: "down" }, context); key({ key: "down" }, context); assert.equal(list.at, 2);
+  await context.tick(POLL); assert.equal(list.at, 2);
+  // Somebody touched T-3, and the default query sorts by last update.
+  host.onExec = () => success(answer([items[2], items[0], items[1]])); await context.tick(POLL);
+  assert.equal(list.at, 0);
+  key({ key: "up" }, context); assert.equal(list.at, 2);
+  // T-2 is closed and leaves the list: the cursor stays in range.
+  host.onExec = () => success(answer([items[2], items[0]])); await context.tick(POLL);
+  list.render(context); assert.equal(list.at, 1);
 });
 
 test("loading, empty, priority, narrow and optional data states render", async () => {
-  const context = cx(); const view = new JiraTickets({}, context);
-  assert.ok(textOf(view.render(context)).includes("Loading Jira tickets…"));
-  view.busy = false; view.data = answer([]);
-  assert.ok(textOf(view.render(context)).includes("No tickets match this query."));
-  view.items = [shape(issue("T-1", { priority: { name: "High [P2]" } }), site), shape({ key: "T-2" }, site), { ...shape(issue("T-3"), site), category: "done" }];
-  assert.ok(textOf(view.render(context)).includes("High [P2]"));
-  handlerOf(view.render(context), "on_size_change")({ width: 200 }, context);
-  assert.ok(!textOf(view.render(context)).includes("High [P2]"));
-  const n = context.notifies; handlerOf(view.render(context), "on_size_change")({ width: 200 }, context); assert.equal(context.notifies, n);
-  handlerOf(view.render(context), "on_mouse_down")({}, context); assert.ok(context.focused > 0);
+  const { context, list } = panel();
+  assert.ok(textOf(list.render(context)).includes("Loading Jira tickets…"));
+  list.busy = false; list.state = "ok"; list.meta = { jql: DEFAULT_JQL, url: searchUrl(config), count: 0 };
+  assert.ok(textOf(list.render(context)).includes("No tickets match this query."));
+  assert.ok(textOf(list.render(context)).includes("0 tickets · Assigned to me"));
+  list.items = [shape(issue("T-1", { priority: { name: "High [P2]" } }), site), shape({ key: "T-2" }, site), { ...shape(issue("T-3"), site), category: "done" }];
+  handlerOf(list.render(context), "on_size_change")({ width: 380 }, context);
+  assert.ok(textOf(list.render(context)).includes("High [P2]"));
+  // Still two lines, but no longer room for the priority after the status.
+  handlerOf(list.render(context), "on_size_change")({ width: 260 }, context);
+  assert.ok(textOf(list.render(context)).includes("Doing"));
+  assert.ok(!textOf(list.render(context)).includes("High [P2]"));
+  const n = context.notifies; handlerOf(list.render(context), "on_size_change")({ width: 260 }, context); assert.equal(context.notifies, n);
+  handlerOf(list.render(context), "on_mouse_down")({}, context); assert.ok(context.focused > 0);
+});
+
+test("the footnote says whether the query is the default or the person's own", () => {
+  assert.equal(jira.footnote({ jql: DEFAULT_JQL, count: 3 }), "3 tickets · Assigned to me");
+  assert.equal(jira.footnote({ jql: "project = OTHER", count: 1 }), "1 tickets · Custom JQL");
+  assert.equal(jira.footnote(null), null);
 });
 
 test("collapse and expansion alter only their own layout block, not terminals", () => {
-  const context = cx(); const view = new JiraTickets({}, context);
+  const { context, list } = panel();
   host.layout = { id: "root", children: [{ id: "jira-tickets", content: { mod: "personal-cockpit", props: { kind: "jira" } }, size: { px: 240 } }] };
-  handlerOf(byId(view.render(context), "jira-minimise"), "on_click")({}, context);
+  handlerOf(byId(list.render(context), "cockpit-jira-minimise"), "on_click")({}, context);
+  // The key the standalone panel used, so a height dragged then is still here.
   assert.equal(host.shared.get("jira-tickets.height"), 240);
   assert.deepEqual(host.run.at(-1), { name: "layout.resize", props: { id: "jira-tickets", px: 42 } });
   host.layout.children[0].size.px = 42;
-  assert.ok(!byId(view.render(context), "jira-list"));
-  handlerOf(byId(view.render(context), "jira-header"), "on_click")({}, context);
+  assert.ok(!byId(list.render(context), "cockpit-jira-list"));
+  handlerOf(byId(list.render(context), "cockpit-jira-header"), "on_click")({}, context);
   assert.deepEqual(host.run.at(-1).props, { id: "jira-tickets", px: 240 });
-  host.shared.clear(); view.toggle(host.layout.children[0], true);
+  host.shared.clear();
+  handlerOf(byId(list.render(context), "cockpit-jira-header"), "on_click")({}, context);
   assert.deepEqual(host.run.at(-1).props, { id: "jira-tickets", weight: 1 });
+  assert.ok(host.run.every((sent) => sent.name === "layout.resize"));
 });
 
 test("configuration opens a native query dialog without an editor or new terminal", async () => {
   const saved = JSON.stringify({ ...config, node: "/custom/node", extra: "keep" });
-  host.files.set("/herdr/mods/personal-cockpit/jira.config.json", saved);
-  const context = cx({ spawn: "run" }); const view = new JiraTickets({}, context); await context.settle();
-  view.configure(context); await context.settle();
+  host.files.set(CONFIG, saved);
+  const { context, list } = panel({ spawn: "run" }); await context.settle();
+  const gear = () => handlerOf(byId(list.render(context), "cockpit-jira-configure"), "on_click")({}, context);
+  gear(); await context.settle();
   assert.equal(host.overlays.at(-1).mod, "personal-cockpit");
   assert.equal(host.overlays.at(-1).props.kind, "jira-settings");
   assert.equal(host.overlays.at(-1).props.expected, saved);
   assert.equal(host.overlays.at(-1).props.config.extra, "keep");
   assert.equal(host.exec.length, 1, "opening settings must not query Jira or launch an editor");
-  host.files.set("/herdr/mods/personal-cockpit/jira.config.json", "{invalid");
-  view.configure(context); await context.settle(); assert.equal(view.stale.kind, "setup");
-  view.data = null; view.configure(context); await context.settle(); assert.equal(view.error.kind, "setup");
+  // A config that stopped parsing opens no dialog over it, says so, and leaves
+  // the list that loaded where it was.
+  host.files.set(CONFIG, "{invalid");
+  gear(); await context.settle();
+  assert.equal(host.overlays.length, 1); assert.ok(list.acted);
+  assert.ok(textOf(list.render(context)).includes("That didn't go through"));
+  assert.equal(list.items.length, 1); assert.equal(list.state, "ok");
 });
 
 test("keyboard refresh/configure and mod commands reuse current contexts", async () => {
-  const context = cx({ spawn: "run" }); const view = new JiraTickets({}, context); await context.settle();
+  const { context, list } = panel({ spawn: "run" }); await context.settle();
   host.deliver("focus"); await context.settle(); assert.equal(context.focused, 1);
   host.deliver("refresh"); await context.settle(); assert.equal(host.exec.length, 2);
   host.deliver("jira-configure"); await context.settle(); assert.equal(host.overlays.length, 1);
   host.deliver("unknown"); await context.settle();
-  const key = handlerOf(view.render(context), "on_key_down");
+  const key = handlerOf(list.render(context), "on_key_down");
   key({ key: "r" }, context); await context.settle();
   key({ key: "c" }, context); await context.settle(); assert.equal(host.exec.length, 3); assert.equal(host.overlays.length, 2);
-  view.items = []; key({ key: "down" }, context);
-  view.open(null, context);
+  list.items = []; handlerOf(list.render(context), "on_key_down")({ key: "down" }, context);
+  list.open(null, context); assert.equal(context.opened.length, 0);
+});
+
+test("Jira publishes no rows for the drawer, and counts nothing as needing you", async () => {
+  const { context, list } = panel({ spawn: "run" }); await context.settle();
+  assert.deepEqual(jira.urgent(list.items), []); assert.equal(jira.attention(list.items), 0);
+  assert.deepEqual(host.shared.get("cockpit.jira.urgent"), []);
 });
