@@ -1,9 +1,9 @@
 // The panel role.
 //
-// Four modules -- pulls, issues, routines, team -- are interchangeable to
-// list.js, which imports all four and treats whichever it was given as
+// Five modules -- pulls, issues, routines, team and jira -- are interchangeable
+// to list.js, which imports all five and treats whichever it was given as
 // `this.source`. That makes them players of one role, so this is one set of
-// tests run against every one of them: the shared role test, rather than four
+// tests run against every one of them: the shared role test, rather than five
 // copies that drift.
 //
 // The contract is read off list.js's own use of `source`, not invented here.
@@ -22,6 +22,7 @@ import * as pulls from "../mods/personal-cockpit/panels/pulls.js";
 import * as issues from "../mods/personal-cockpit/panels/issues.js";
 import * as routines from "../mods/personal-cockpit/panels/routines.js";
 import * as team from "../mods/personal-cockpit/panels/team.js";
+import * as jira from "../mods/personal-cockpit/jira/jira.js";
 import { VERBS } from "../mods/personal-cockpit/kit/urgent.js";
 import { label, minutesAgo, prNode, reviewRequest, teamPrNode } from "./support/factories.js";
 
@@ -30,6 +31,7 @@ const PANELS = [
   ["issues", issues],
   ["routines", routines],
   ["team", team],
+  ["jira", jira],
 ];
 
 // One item per player that wants something from you, which is the one thing the
@@ -40,6 +42,11 @@ const PANELS = [
 // These are the shapes the panels pass internally, not GitHub's -- `urgent` is
 // a pure function of a loaded list, and for two of the panels that list never
 // looked like a GitHub payload.
+//
+// Jira has none, and that is its answer rather than a gap: a ticket assigned to
+// you is a list you read, not a move that is stuck on you, so `urgent` is
+// empty whatever it is given. The specimen tests skip it; the ones that hold
+// for an empty answer still run.
 const NEEDY = {
   // A conflicting pull request of yours: cannot land, and the move is yours.
   pulls: [pulls.shape(prNode({ mergeable: "CONFLICTING" }))],
@@ -94,6 +101,14 @@ const REQUIRED = {
 const OPTIONAL = {
   stampNote: "function",
   footnote: "function",
+  // What Jira brought with it. Each is how a source says it differs, in place
+  // of a branch on its name in list.js.
+  heightKey: "string",
+  keepsLastGood: "boolean",
+  focusOnPress: "boolean",
+  commands: "object",
+  browse: "function",
+  browseTip: "string",
   configure: "function",
   configureTip: "string",
   act: "function",
@@ -150,8 +165,8 @@ for (const [name, mod] of PANELS) {
   test(`${name}.attention is ${name}.urgent's length, not a second opinion`, () => {
     // The header pill and the drawer have to agree, and the only way to be sure
     // they do is for one of them to be derived from the other.
-    const items = NEEDY[name];
-    assert.ok(mod.urgent(items).length > 0, `the ${name} specimen should want something`);
+    const items = NEEDY[name] ?? [];
+    if (NEEDY[name]) assert.ok(mod.urgent(items).length > 0, `the ${name} specimen should want something`);
     assert.equal(mod.attention(items), mod.urgent(items).length);
     assert.equal(mod.attention([]), mod.urgent([]).length);
   });
@@ -194,7 +209,7 @@ for (const [name, mod] of PANELS) {
   }
 }
 
-test("the four panel keys are distinct", () => {
+test("the panel keys are distinct", () => {
   // `panel` names the layout block, the remembered height in shared state and
   // the cache. Two panels sharing one would share a height and a cached list.
   const keys = PANELS.map(([, mod]) => mod.panel);

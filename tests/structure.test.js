@@ -23,6 +23,7 @@ import * as pulls from "../mods/personal-cockpit/panels/pulls.js";
 import * as issues from "../mods/personal-cockpit/panels/issues.js";
 import * as routines from "../mods/personal-cockpit/panels/routines.js";
 import * as team from "../mods/personal-cockpit/panels/team.js";
+import * as jira from "../mods/personal-cockpit/jira/jira.js";
 import Cockpit from "../mods/personal-cockpit/main.js";
 
 const ROOT = resolvePath(dirname(fileURLToPath(import.meta.url)), "..");
@@ -135,8 +136,8 @@ test("a borrowed asset is still there in the installed app", (t) => {
 });
 
 test("every panel's icon is a file that is there", () => {
-  // `check` renders one panel, so three of these four are otherwise unverified.
-  for (const panel of [pulls, issues, routines, team]) {
+  // `check` renders one panel, so the rest of these are otherwise unverified.
+  for (const panel of [pulls, issues, routines, team, jira]) {
     assert.ok(existsSync(join(ROOT, panel.icon)), `${panel.panel}: ${panel.icon} does not exist`);
   }
 });

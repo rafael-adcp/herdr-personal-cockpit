@@ -1,180 +1,129 @@
-// Jira is a Cockpit screen. Only its data/authentication path differs from the
-// GitHub lists; all panel chrome and layout operations come from kit/dock.
+// Jira, as a list source: the fifth player of the role pulls, issues, routines
+// and team play for screens/list.js.
+//
+// It used to be a screen of its own -- a second copy of the refresh, the stale
+// list, the cursor, the keys and the render, which is the thing this mod is one
+// folder to avoid. What is actually different about Jira is where the rows come
+// from and what a failure means, and both of those fit in the role. So this
+// file is only that: the config file, the bridge, the row, and the handful of
+// answers list.js asks every source for.
+//
+// Where its behaviour really does differ from the GitHub panels, it says so
+// with an optional member rather than a branch in list.js: `keepsLastGood`,
+// `commands`, `browse`, `heightKey`, `focusOnPress`.
+
 import { div } from "gpui-kit";
-import { v_flex } from "gpui-base";
-import { layout, nextCommand, openOverlay, props, readTextFile, theme } from "herdr";
-import { DEFAULT_JQL, sections } from "./jira-model.js";
-import { COLLAPSED_MAX, RAIL_MAX, hostBlockFor, minimise, moveTo, placeOf } from "../kit/dock.js";
-import { button, cell, header, rail, row, sectionHead, shell } from "../kit/kit.js";
+import { openOverlay, readTextFile } from "herdr";
+import { cell, row } from "../kit/kit.js";
+import { DEFAULT_JQL, sections as byStatus } from "./jira-model.js";
 import { configPath, executeQuery } from "./jira-query.js";
 
-const INTERVAL = 180000;
-// Keep the existing saved height when migrating from the standalone panel.
-const HEIGHT_KEY = "jira-tickets.height";
+export const panel = "jira";
+export const title = "My Jira tickets";
+// Borrowed from Kraken Tasks: a ticket is the same idea, and this panel is
+// optional, so it has not earned art of its own.
+export const icon = "mods/personal-cockpit/icons/issues.svg";
+export const needsRepo = false;
+export const refreshMs = 180000;
+export const loading = "Loading Jira tickets…";
+export const empty = "No tickets match this query.";
 
-export class Jira {
-  constructor(_view, cx) {
-    this.pendingRefresh = false;
-    this.items = [];
-    this.data = null;
-    this.error = null;
-    this.stale = null;
-    this.busy = false;
-    this.at = 0;
-    this.selectedKey = null;
-    this.width = 380;
-    this.handle = cx.focus_handle();
-    this.refresh(cx);
-    cx.timer.every(INTERVAL, (cx) => this.refresh(cx));
-    cx.spawn(async (cx) => {
-      for (;;) {
-        const command = await nextCommand();
-        if (command === "focus") this.handle.focus();
-        else if (command === "refresh" || command === "jira-refresh") this.requestRefresh(cx);
-        else if (command === "jira-configure") this.configure(cx);
-        else if (command === "jira-move-left") this.move("sidebar");
-        else if (command === "jira-move-right") this.move("right");
-        cx.notify();
-      }
-    });
-  }
+// The standalone panel remembered its height under this key. Kept, so that
+// neither that migration nor this one costs anybody the height they dragged.
+export const heightKey = "jira-tickets.height";
 
-  requestRefresh(cx) {
-    if (this.busy) this.pendingRefresh = true;
-    else this.refresh(cx);
-  }
+// A failed poll never replaces a list that loaded, whatever the failure was and
+// even when that list is empty. The GitHub panels give the screen up for a
+// login problem, because the fix is a button they can draw; here the fix is in
+// Pi or in a file, and "no tickets" that was true a minute ago is better than a
+// panel that forgot it.
+export const keepsLastGood = true;
 
-  refresh(cx) {
-    if (this.busy) return;
-    this.busy = true;
-    cx.notify();
-    cx.spawn(async (cx) => {
-      try {
-        const configText = await readTextFile(configPath());
-        const config = configText ? JSON.parse(configText) : {};
-        const data = await executeQuery(config);
-        this.items = data.items;
-        this.data = data;
-        this.at = Math.max(0, this.ordered().findIndex((item) => item.key === this.selectedKey));
-        this.error = null;
-        this.stale = null;
-      } catch (e) {
-        const error = { kind: e?.kind ?? "error", message: String(e?.message ?? e) };
-        // A failed refresh never clears a known-good list, including an empty one.
-        if (this.data) this.stale = error;
-        else this.error = error;
-      } finally {
-        this.busy = false;
-        cx.notify();
-        if (this.pendingRefresh) { this.pendingRefresh = false; this.refresh(cx); }
-      }
-    });
-  }
+// A press anywhere on the panel takes the keyboard, as the standalone one did.
+export const focusOnPress = true;
 
-  ordered() { return sections(this.items).flatMap((group) => group.items); }
+// A mod command reaches every copy on screen. `refresh` is meant to; the other
+// three would move or reconfigure every panel at once, so Jira answers to names
+// of its own -- and, having its own `configure`, stays out of the shared one,
+// which is the repo picker.
+export const commands = {
+  refresh: "jira-refresh",
+  configure: "jira-configure",
+  left: "jira-move-left",
+  right: "jira-move-right",
+};
 
-  open(item, cx) { if (item?.url) cx.open_url(item.url); }
+async function readConfig() {
+  const text = await readTextFile(configPath());
+  return { text, config: text ? JSON.parse(text) : {} };
+}
 
-  configure(cx) {
-    cx.spawn(async (cx) => {
-      try {
-        const expected = await readTextFile(configPath());
-        const config = expected ? JSON.parse(expected) : {};
-        openOverlay({ mod: "personal-cockpit", kind: "dialog", width: 680, props: { kind: "jira-settings", config, expected } });
-      } catch (e) {
-        const error = { kind: "setup", message: String(e?.message ?? e) };
-        if (this.data) this.stale = error;
-        else this.error = error;
-        cx.notify();
-      }
-    });
-  }
+export async function load() {
+  const { config } = await readConfig();
+  const data = await executeQuery(config);
+  return { items: data.items, meta: { jql: data.jql, url: data.url, count: data.items.length } };
+}
 
-  toggle(host, collapsed) { minimise(host, collapsed, HEIGHT_KEY); }
+/** The gear: the native query editor. It is handed the file's exact text, so
+ *  its save can refuse to overwrite a config that changed underneath it. */
+export async function configure() {
+  const { text, config } = await readConfig();
+  openOverlay({
+    mod: "personal-cockpit",
+    kind: "dialog",
+    width: 680,
+    props: { kind: "jira-settings", config, expected: text },
+  });
+}
 
-  host() { return hostBlockFor(layout(), "jira", props()?.node); }
+export const configureTip = "Customize Jira query · c";
 
-  move(side) {
-    const host = this.host();
-    if (placeOf(layout(), host)) moveTo(host, side);
-  }
+/** The same search in the browser: the exact JQL the list came from, never a
+ *  board it might or might not mirror. */
+export const browse = (meta) => meta?.url ?? null;
 
-  render(cx) {
-    const t = theme();
-    const host = this.host();
-    const collapsed = Boolean(host && (host.size?.px ?? Infinity) <= COLLAPSED_MAX);
-    const railed = this.width < RAIL_MAX;
-    const ordered = this.ordered();
-    const selected = ordered[this.at];
-    const trouble = this.stale ?? this.error;
-    const stamp = this.data ? `${this.data.jql}\nLast updated: ${new Date(this.data.at).toLocaleString()}` : "Refresh assigned Jira tickets";
-    const body = [railed ? rail(t, "mods/personal-cockpit/icons/issues.svg", 0) : header(t, {
-      id: "jira",
-      title: "My Jira tickets",
-      count: this.data ? this.items.length : 0,
-      trouble: trouble ? (this.data ? "stale" : trouble.kind) : null,
-      troubleTip: trouble?.message,
-      stamp,
-      busy: this.busy,
-      host,
-      collapsed,
-      place: placeOf(layout(), host),
-      onRefresh: (cx) => this.requestRefresh(cx),
-      onConfigure: (cx) => this.configure(cx),
-      configureTip: "Customize Jira query · c",
-      onBrowse: this.data ? (cx) => cx.open_url(this.data.url) : null,
-      browseTip: "Open this search in Jira · o",
-      onMove: (side) => this.move(side),
-      onMinimise: () => this.toggle(host, collapsed),
-    })];
-    if (!railed && !collapsed) {
-      if (this.error) {
-        body.push(v_flex().px(16).pb(10).gap(8).child(div().text_size(12).text_color(t.muted).child(this.error.message))
-          .child(button(t, "jira-retry", "Try again", (_e, cx) => this.refresh(cx))));
-      } else if (!this.data) {
-        body.push(div().px(16).text_size(12).text_color(t.dim).child("Loading Jira tickets…"));
-      } else {
-        const rows = [];
-        for (const group of sections(this.items)) {
-          rows.push(sectionHead(t, group.label, group.items.length));
-          for (const item of group.items) {
-            const color = item.category === "indeterminate" ? t.working : item.category === "done" ? t.done : t.dim;
-            const priorityColor = /highest|critical|blocker|\bP[12]\b/i.test(item.priority) ? t.blocked : t.dim;
-            rows.push(row(t, {
-              id: `jira-${item.key}`, title: item.title, age: "", wide: true,
-              glyph: cell().text_color(color).child("●"), selected: item === selected,
-              tooltip: `${item.key} · ${item.title}\n${item.status} · ${item.priority}\n${item.project} · ${item.type}\nUpdated: ${item.updated ?? "unknown"}`,
-              onClick: (_e, cx) => { this.at = ordered.indexOf(item); this.selectedKey = item.key; this.open(item, cx); cx.notify(); },
-              second: [
-                div().flex_none().text_color(t.muted).child(item.key),
-                div().flex_1().min_w(0).truncate().text_color(color).child(item.status),
-                ...(this.width >= 300 ? [div().flex_none().text_color(priorityColor).child(item.priority)] : []),
-              ],
-            }));
-          }
-        }
-        if (!rows.length) rows.push(div().px(10).py(6).text_size(12).text_color(t.dim).child("No tickets match this query."));
-        body.push(v_flex().id("jira-list").flex_1().min_h(0).px(6).gap(1).overflow_y_scrollbar().children(rows));
-        const footnote = this.stale ? "Couldn't refresh · showing the last successful list" :
-          `${this.items.length} tickets · ${this.data.jql === DEFAULT_JQL ? "Assigned to me" : "Custom JQL"}`;
-        body.push(div().flex_none().px(16).pb(6).truncate().text_size(10).text_color(this.stale ? t.blocked : t.dim)
-          .tooltip(this.stale?.message ?? stamp).child(footnote));
-      }
-    }
-    return shell(t, {
-      id: "jira-root", handle: this.handle, body,
-      onSize: (size, cx) => { if (this.width !== size.width) { this.width = size.width; cx.notify(); } },
-      onKey: (e, cx) => {
-        if (e.key === "r") this.requestRefresh(cx);
-        else if (e.key === "c") this.configure(cx);
-        else if (e.key === "o" && this.data) cx.open_url(this.data.url);
-        else if (e.key === "down" && ordered.length) this.at = (this.at + 1) % ordered.length;
-        else if (e.key === "up" && ordered.length) this.at = (this.at + ordered.length - 1) % ordered.length;
-        else if (e.key === "enter") this.open(selected, cx);
-        else return;
-        this.selectedKey = ordered[this.at]?.key ?? null;
-        cx.stop_propagation(); cx.notify();
-      },
-    }).on_mouse_down("left", () => this.handle.focus());
-  }
+export const browseTip = "Open this search in Jira · o";
+
+export const sections = byStatus;
+
+// Nothing here is a move that is yours in the sense the drawer means: a ticket
+// assigned to you is a list you read, not something stuck on you. So Jira
+// publishes no rows, and its rail and header count nothing as needing you.
+export const urgent = () => [];
+
+export const attention = (items) => urgent(items).length;
+
+export const stampNote = (meta) => meta?.jql ?? null;
+
+export function footnote(meta) {
+  if (!meta) return null;
+  return `${meta.count} tickets · ${meta.jql === DEFAULT_JQL ? "Assigned to me" : "Custom JQL"}`;
+}
+
+// Below this the second line has no room for the priority after the status.
+const ROOMY = 300;
+
+export function rowOf(t, item, o) {
+  const color = item.category === "indeterminate" ? t.working : item.category === "done" ? t.done : t.dim;
+  const pressing = /highest|critical|blocker|\bP[12]\b/i.test(item.priority);
+  return row(t, {
+    id: `jira-${item.key}`,
+    glyph: cell().text_color(color).child("●"),
+    title: item.title,
+    age: "",
+    tooltip: [
+      `${item.key} · ${item.title}`,
+      `${item.status} · ${item.priority}`,
+      `${item.project} · ${item.type}`,
+      `Updated: ${item.updated ?? "unknown"}`,
+    ].join("\n"),
+    selected: o.selected,
+    wide: o.wide,
+    onClick: o.onClick,
+    second: [
+      div().flex_none().text_color(t.muted).child(item.key),
+      div().flex_1().min_w(0).truncate().text_color(color).child(item.status),
+      ...(o.width >= ROOMY ? [div().flex_none().text_color(pressing ? t.blocked : t.dim).child(item.priority)] : []),
+    ],
+  });
 }

@@ -368,8 +368,8 @@ mods/personal-cockpit/
   panels/issues.js        the REST call, slimming, cache, grouping and row for issues
   panels/routines.js      the routines file, the marker, the ▶ that opens a task
 
-  jira/jira.js            the optional Jira screen, reusing kit.js and dock.js;
-                          no urgency rows
+  jira/jira.js            the optional Jira panel: a fifth list source -- the
+                          config read, the bridge call and the row; no urgency rows
   jira/jira-model.js      pure query, pagination and shaping
   jira/jira-query.js      exec adapter shared by the panel and query editor
   jira/jira-settings.js   native JQL dialog
@@ -387,8 +387,8 @@ One mod, twenty-one modules in four folders, plus the separate
 The folders are grouping, not boundaries: a mod may hold subfolders and import
 freely between them, and `main.js` must stay at the mod root. `kit/` is what
 every screen shares, `screens/` is the things a `kind` resolves to, `panels/`
-the four list sources `screens/list.js` draws, `jira/` the optional screen with
-its own model, adapter, dialog and Node bridge, and `icons/` the art.
+the four GitHub list sources `screens/list.js` draws, `jira/` the optional
+fifth with its own model, adapter, dialog and Node bridge, and `icons/` the art.
 
 The manifest, `package.json` and the person's config files stay at the root:
 `package.json` is what makes every `.js` beneath it load as ESM, and both
@@ -411,14 +411,21 @@ Nine `kind`s, one screen each. The four default layout blocks are panels, with
 one floating block is the drawer, `props: { kind: "urgent" }`; and the mod opens
 two of its own as dialog overlays — `{ kind: "repo-picker", panel, current }`
 from a gear, and `{ kind: "kit" }` from the `personal-cockpit.kit` command.
-The optional `kind: "jira"` screen adds a Jira panel to any personal layout;
+The optional `kind: "jira"` adds a Jira panel to any personal layout. It is a
+fifth source for `list.js`, not a screen of its own: the header, rail, cursor,
+keys, docking and stale handling are the ones the GitHub panels use.
 `kind: "jira-settings"` is its 680 px native query editor. Its three-minute
 poll uses only read-only JQL searches through the existing managed Pi Atlassian
-login. A failed poll retains even a successful empty list; a refresh requested
-mid-poll is queued. Query save validates before a compare-and-swap config write,
-and closing the overlay cancels a pending save through the View's close hook.
+login. Where it differs it says so as a source: `keepsLastGood` (a failed poll
+of any kind retains what loaded, even a successful empty list), `browse` (the
+header button and `o` open the exact JQL search), `heightKey` (the standalone
+panel's remembered height), `focusOnPress`, and `commands`. A refresh requested
+mid-poll is queued -- for every panel, since `list.js` does the queueing. Query
+save validates before a compare-and-swap config write, and closing the overlay
+cancels a pending save through the View's close hook.
 Only Jira handles the `jira-refresh`, `jira-configure`, `jira-move-left` and
-`jira-move-right` commands; the general `refresh` still reaches every list.
+`jira-move-right` commands, and it stays out of the shared `configure`, which is
+the repo picker; the general `refresh` still reaches every list.
 Its local `jira.config.json` survives both installers. No OAuth credentials
 are copied. Jira does not publish drawer rows. See `JIRA.md` for setup.
 
@@ -563,7 +570,8 @@ adding a connection to one of these, and do not estimate.
 - **`props.kind` is the only thing telling the copies apart.** A new panel is a
   module with the source interface (`panel`, `title`, `icon`, `load`,
   `sections`, `attention`, `urgent`, `rowOf`, and whichever of `configure`,
-  `footnote`, `stampNote`, `newUrl`, `act`, `cached`/`save` it needs), one line
+  `footnote`, `stampNote`, `newUrl`, `act`, `cached`/`save`, `browse`,
+  `commands`, `keepsLastGood`, `heightKey`, `focusOnPress` it needs), one line
   in `SOURCES` in `list.js`, and a block in the layout. `panel` names the block,
   the remembered height, the cache and the shared key it publishes under — it is
   not the title, which is why renaming "Pull requests" to "My pull requests"

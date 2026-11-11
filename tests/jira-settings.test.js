@@ -2,7 +2,7 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { QuerySettings } from "../mods/personal-cockpit/jira/jira-settings.js";
 import Cockpit from "../mods/personal-cockpit/main.js";
-import { Jira as JiraTickets } from "../mods/personal-cockpit/jira/jira.js";
+import { List } from "../mods/personal-cockpit/screens/list.js";
 import { DEFAULT_JQL } from "../mods/personal-cockpit/jira/jira-model.js";
 import { host, reset } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
@@ -119,14 +119,14 @@ test("advanced config retains the explicit system-editor action on each platform
 
 test("a settings refresh signal arriving mid-poll is queued, not lost", async () => {
   let finish;
-  host.props = null;
+  host.props = { kind: "jira" };
   host.files.set(path, JSON.stringify(config));
   host.onExec = () => host.exec.length === 1 ? new Promise((resolve) => { finish = resolve; }) : success("project = OTHER");
-  const context = cx({ spawn: "run" }); const view = new JiraTickets({}, context); await context.settle();
-  view.requestRefresh(context); assert.equal(view.pendingRefresh, true);
+  const context = cx({ spawn: "run" }); const view = new List({}, context); await context.settle();
+  view.requestRefresh(context); assert.equal(view.pending, true);
   assert.equal(host.exec.length, 1);
   finish(success()); await context.settle();
-  assert.equal(host.exec.length, 2); assert.equal(view.pendingRefresh, false); assert.equal(view.data.jql, "project = OTHER");
+  assert.equal(host.exec.length, 2); assert.equal(view.pending, false); assert.equal(view.meta.jql, "project = OTHER");
   assert.ok(textOf(view.render(context)).includes("0 tickets · Custom JQL"));
 });
 

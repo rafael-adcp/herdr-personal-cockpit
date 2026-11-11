@@ -202,6 +202,46 @@ test("a poll already in flight is not started again", async () => {
   assert.equal(apiCalls().length, 1, "the panel polled while it was already polling");
 });
 
+test("a refresh asked for mid-poll runs once when that poll lands, however often it was asked", async () => {
+  // The timer's own tick is dropped while a load is in flight -- another is
+  // coming. A request is somebody saying the world changed, after that load
+  // had already started reading it.
+  host.props = { kind: "pulls" };
+  pullsAnswer();
+  const context = cx({ spawn: "run" });
+  const list = new List(view, context);
+
+  list.requestRefresh(context);
+  list.requestRefresh(context);
+  assert.equal(list.pending, true);
+  await context.settle();
+
+  assert.equal(apiCalls().length, 2);
+  assert.equal(list.pending, false);
+  assert.equal(list.busy, false);
+});
+
+test("the cursor stays on its row when a reload moves it", async () => {
+  host.props = { kind: "pulls" };
+  const pr = (number) => prNode({ number, url: `https://github.com/acme/app/pull/${number}` });
+  pullsAnswer([pr(1), pr(2), pr(3)]);
+  const context = cx({ spawn: "run" });
+  const list = new List(view, context);
+  await context.settle();
+
+  list.at = 2;
+  const held = list.strip().pickable[2].url;
+  assert.equal(held, pr(3).url);
+
+  // GitHub answers newest first, and the one under the cursor was just pushed to.
+  pullsAnswer([pr(3), pr(1), pr(2)]);
+  list.refresh(context);
+  await context.settle();
+
+  assert.equal(list.at, 0);
+  assert.equal(list.strip().pickable[list.at].url, held);
+});
+
 // ---- publishing to the drawer ---------------------------------------------
 
 // The drawer is another copy of this mod and cannot see this one's items, so a

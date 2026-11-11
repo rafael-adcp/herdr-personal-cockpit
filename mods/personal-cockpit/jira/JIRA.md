@@ -1,10 +1,11 @@
 # My Jira tickets
 
-An optional read-only screen of the Personal Cockpit mod (`props.kind: "jira"`).
-It shares the other panels' header, rows, rail, SVG controls, docking and config
-opener. There is no separate mod or duplicated layout. The screen and its
-`jira-model.js`, `jira-query.js`, `jira-settings.js` and `jira-bridge.mjs` helpers
-all live at the mod root, alongside the other panels. The root `package.json`
+An optional read-only panel of the Personal Cockpit mod (`props.kind: "jira"`).
+It is a list source like the GitHub panels, run by the same `screens/list.js`,
+so the header, rows, rail, SVG controls, docking, keyboard and stale handling
+are theirs rather than copies. There is no separate mod or duplicated layout.
+The source (`jira.js`) and its `jira-model.js`, `jira-query.js`,
+`jira-settings.js` and `jira-bridge.mjs` helpers live in the mod's `jira/` folder. The root `package.json`
 only marks shared `.js` modules as ESM for Node; it declares no dependencies.
 It uses no LLM. Default JQL:
 

@@ -7,6 +7,7 @@
 //
 //   { "mod": "personal-cockpit", "props": { "kind": "pulls" } }     your pull requests
 //   { "mod": "personal-cockpit", "props": { "kind": "issues" } }    Kraken Tasks
+//   { "mod": "personal-cockpit", "props": { "kind": "jira" } }      Jira tickets
 //   { "mod": "personal-cockpit", "props": { "kind": "urgent" } }    the floating drawer
 //   { "mod": "personal-cockpit", "props": { "kind": "kit" } }       the chrome gallery
 //   openOverlay({ mod: "personal-cockpit", props: { kind: "repo-picker", ... } })
@@ -20,15 +21,14 @@ import { Drawer } from "./screens/drawer.js";
 import { Gallery } from "./screens/gallery.js";
 import { List } from "./screens/list.js";
 import { Picker } from "./screens/picker.js";
-import { Jira } from "./jira/jira.js";
 import { QuerySettings } from "./jira/jira-settings.js";
 
-// A `kind` that is not here is a panel: the four panels name themselves with
-// it, and so does `herdr-app check`, which renders the mod with no props at
-// all. So the list panel is the default rather than an entry.
+// A `kind` that is not here is a panel: the panels name themselves with it --
+// the four GitHub ones and Jira, which is a source like them (list.js holds
+// the roster) -- and so does `herdr-app check`, which renders the mod with no
+// props at all. So the list panel is the default rather than an entry.
 const SCREENS = {
   "repo-picker": Picker,
-  jira: Jira,
   "jira-settings": QuerySettings,
   urgent: Drawer,
   kit: Gallery,
