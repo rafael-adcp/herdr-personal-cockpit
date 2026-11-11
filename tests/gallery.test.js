@@ -12,18 +12,18 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { Gallery } from "../mods/personal-cockpit/gallery.js";
-import { shareKey } from "../mods/personal-cockpit/urgent.js";
-import * as issues from "../mods/personal-cockpit/issues.js";
-import * as pulls from "../mods/personal-cockpit/pulls.js";
-import * as routines from "../mods/personal-cockpit/routines.js";
-import * as team from "../mods/personal-cockpit/team.js";
+import { Gallery } from "../mods/personal-cockpit/screens/gallery.js";
+import { shareKey } from "../mods/personal-cockpit/kit/urgent.js";
+import * as issues from "../mods/personal-cockpit/panels/issues.js";
+import * as pulls from "../mods/personal-cockpit/panels/pulls.js";
+import * as routines from "../mods/personal-cockpit/panels/routines.js";
+import * as team from "../mods/personal-cockpit/panels/team.js";
 import { host, reset } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
 import { callsOf, handlerOf, textOf } from "./support/element.js";
 
 const view = {};
-const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), "..", "mods", "personal-cockpit", "gallery.js");
+const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), "..", "mods", "personal-cockpit", "screens", "gallery.js");
 
 const render = () => new Gallery(view, cx()).render();
 

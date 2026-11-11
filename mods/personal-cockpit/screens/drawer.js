@@ -20,10 +20,10 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { placement, shared, theme } from "herdr";
-import { agoShort } from "./github.js";
-import { CELL, badge, row, sectionHead } from "./kit.js";
+import { agoShort } from "../kit/github.js";
+import { CELL, badge, row, sectionHead } from "../kit/kit.js";
 import { SOURCES } from "./list.js";
-import { groups, merge, shareKey } from "./urgent.js";
+import { groups, merge, shareKey } from "../kit/urgent.js";
 
 export const ICON = "mods/personal-cockpit/urgent.svg";
 

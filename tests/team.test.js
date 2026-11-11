@@ -8,7 +8,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { searchFor, shape, sections, attention, stampNote, footnote, load, rowOf } from "../mods/personal-cockpit/team.js";
+import { searchFor, shape, sections, attention, stampNote, footnote, load, rowOf } from "../mods/personal-cockpit/panels/team.js";
 import { host, reset, theme } from "./support/host/herdr.js";
 import { gh } from "./support/gh.js";
 import { teamPrNode, reviewRequest, review, minutesAgo } from "./support/factories.js";

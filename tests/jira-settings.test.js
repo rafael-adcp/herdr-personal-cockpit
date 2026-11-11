@@ -1,9 +1,9 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { QuerySettings } from "../mods/personal-cockpit/jira-settings.js";
+import { QuerySettings } from "../mods/personal-cockpit/jira/jira-settings.js";
 import Cockpit from "../mods/personal-cockpit/main.js";
-import { Jira as JiraTickets } from "../mods/personal-cockpit/jira.js";
-import { DEFAULT_JQL } from "../mods/personal-cockpit/jira-model.js";
+import { Jira as JiraTickets } from "../mods/personal-cockpit/jira/jira.js";
+import { DEFAULT_JQL } from "../mods/personal-cockpit/jira/jira-model.js";
 import { host, reset } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
 import { handlerOf, textOf } from "./support/element.js";
@@ -53,7 +53,7 @@ test("saving validates the exact draft through argv, preserves other config and 
   handlerOf(byId(settings.render(), "jira-query-save"), "on_click")({}, context);
   assert.equal(settings.busy, true);
   await context.settle();
-  assert.deepEqual(host.exec[0], { command: "/custom/node", args: ["/herdr/mods/personal-cockpit/jira-bridge.mjs", path, jql] });
+  assert.deepEqual(host.exec[0], { command: "/custom/node", args: ["/herdr/mods/personal-cockpit/jira/jira-bridge.mjs", path, jql] });
   assert.deepEqual(JSON.parse(host.files.get(path)), { ...config, jql });
   assert.deepEqual(host.run, [{ name: "personal-cockpit.jira-refresh", props: undefined }]);
   assert.equal(host.overlays.length, 0); assert.equal(settings.error, null); assert.equal(settings.busy, false);

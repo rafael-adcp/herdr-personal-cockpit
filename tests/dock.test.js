@@ -16,7 +16,7 @@ import {
   COLLAPSED, COLLAPSED_MAX, RAIL_MAX, RIGHT,
   find, parentOf, destinations, hostBlockFor, placeOf, narrowSidebar,
   minimise, moveTo,
-} from "../mods/personal-cockpit/dock.js";
+} from "../mods/personal-cockpit/kit/dock.js";
 import { host, reset } from "./support/host/herdr.js";
 import { tree, panelBlock, rightColumn } from "./support/factories.js";
 

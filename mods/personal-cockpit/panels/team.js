@@ -16,10 +16,10 @@
 // under you is one you have to read, and this is one you glance at.
 
 import { div } from "gpui-kit";
-import { ago, agoShort, graphql, viewer } from "./github.js";
-import { RED, RUNNING } from "./checks.js";
-import { checkGlyph, row } from "./kit.js";
-import * as conf from "./conf.js";
+import { ago, agoShort, graphql, viewer } from "../kit/github.js";
+import { RED, RUNNING } from "../kit/checks.js";
+import { checkGlyph, row } from "../kit/kit.js";
+import * as conf from "../kit/conf.js";
 
 export const panel = "team";
 export const title = "Team's pull requests";

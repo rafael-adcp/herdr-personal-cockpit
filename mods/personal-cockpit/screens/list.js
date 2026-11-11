@@ -17,15 +17,15 @@ import {
   moveTo,
   narrowSidebar,
   placeOf,
-} from "./dock.js";
-import { WIDE, button, header, rail, sectionHead, shell } from "./kit.js";
-import { ago, ghCommand } from "./github.js";
-import { repoOf } from "./config.js";
-import { shareKey } from "./urgent.js";
-import * as pulls from "./pulls.js";
-import * as issues from "./issues.js";
-import * as routines from "./routines.js";
-import * as team from "./team.js";
+} from "../kit/dock.js";
+import { WIDE, button, header, rail, sectionHead, shell } from "../kit/kit.js";
+import { ago, ghCommand } from "../kit/github.js";
+import { repoOf } from "../kit/config.js";
+import { shareKey } from "../kit/urgent.js";
+import * as pulls from "../panels/pulls.js";
+import * as issues from "../panels/issues.js";
+import * as routines from "../panels/routines.js";
+import * as team from "../panels/team.js";
 
 /** The panels, by the `props.kind` that names one. Exported so the drawer can
  *  select its sources from this roster and read their published urgent rows

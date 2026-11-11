@@ -18,12 +18,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { demo } from "../tools/demo.mjs";
-import * as github from "../mods/personal-cockpit/github.js";
-import * as issues from "../mods/personal-cockpit/issues.js";
-import * as pulls from "../mods/personal-cockpit/pulls.js";
-import * as routines from "../mods/personal-cockpit/routines.js";
-import * as team from "../mods/personal-cockpit/team.js";
-import { groups, merge } from "../mods/personal-cockpit/urgent.js";
+import * as github from "../mods/personal-cockpit/kit/github.js";
+import * as issues from "../mods/personal-cockpit/panels/issues.js";
+import * as pulls from "../mods/personal-cockpit/panels/pulls.js";
+import * as routines from "../mods/personal-cockpit/panels/routines.js";
+import * as team from "../mods/personal-cockpit/panels/team.js";
+import { groups, merge } from "../mods/personal-cockpit/kit/urgent.js";
 import { host, reset } from "./support/host/herdr.js";
 import { gh } from "./support/gh.js";
 

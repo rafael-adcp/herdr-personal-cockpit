@@ -52,13 +52,21 @@ for f in "$root/mods/$name"/*; do
     gpui-kit.d.ts|jsconfig.json) continue ;;   # the app writes these itself
     routines.yml|team.yml|jira.config.json) continue ;;         # the person's, restored below
   esac
-  # -R because the mod folder may hold directories. Without it `cp` refuses a
-  # directory, exits 1, and `set -e` ends the install at the first one -- so
-  # nothing is installed at all. The exclusions above are basenames at the top
-  # level, which is where the generated and personal files live; a subfolder is
-  # copied whole and none of them can hide inside one.
+  # -R because the mod folder holds directories (kit, screens, panels, jira).
+  # Without it `cp` refuses a directory, exits 1, and `set -e` ends the install
+  # at the first one -- so nothing is installed at all.
   cp -R -- "$f" "$dst/"
 done
+
+# The `case` above matches basenames at the top level, which is enough for the
+# personal files -- both installers keep those at the mod root. It is not enough
+# for the two the app generates: it writes a gpui-kit.d.ts and a jsconfig.json
+# into every folder it finds JavaScript in, this repo's subfolders included, so
+# a copy of each rode in with the folder. They have to match the installed
+# version, which the app rewrites on start, so a stale one from here would
+# shadow it. robocopy's /XF in install.ps1 excludes by name at any depth and
+# needs no equivalent.
+find "$dst" -type f \( -name gpui-kit.d.ts -o -name jsconfig.json \) -exec rm -f -- {} +
 echo "mod      -> $dst"
 
 # Theirs if they had one, the example if they did not: an install never

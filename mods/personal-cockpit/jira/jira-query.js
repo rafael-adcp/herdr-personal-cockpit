@@ -1,13 +1,19 @@
 import { exec } from "herdr";
-import { pathOf } from "./conf.js";
+import { pathOf } from "../kit/conf.js";
 export const configPath = () => pathOf("jira.config.json");
 
 // Both polling and the settings dialog use this same read-only bridge. The
 // optional JQL is a separate argv entry, never shell text or a temporary file.
+//
+// The bridge is named with its folder because this path is built at run time
+// from the installed mod root, not resolved as an import: moving the file would
+// leave this string pointing at nothing and nothing would say so until a query
+// ran. `jira.config.json` has no folder for the opposite reason -- it is the
+// person's, and both installers keep it at the mod root.
 export async function executeQuery(config, jql) {
   const node = config.node ?? "node";
   if (typeof node !== "string" || !node.trim()) throw new Error("Set node to the Node.js executable path in jira.config.json.");
-  const args = [pathOf("jira-bridge.mjs"), configPath()];
+  const args = [pathOf("jira/jira-bridge.mjs"), configPath()];
   if (jql !== undefined) args.push(jql);
   const result = await exec(node, args);
   let data;

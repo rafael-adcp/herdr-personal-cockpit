@@ -19,18 +19,19 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, relative, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import * as pulls from "../mods/personal-cockpit/pulls.js";
-import * as issues from "../mods/personal-cockpit/issues.js";
-import * as routines from "../mods/personal-cockpit/routines.js";
-import * as team from "../mods/personal-cockpit/team.js";
+import * as pulls from "../mods/personal-cockpit/panels/pulls.js";
+import * as issues from "../mods/personal-cockpit/panels/issues.js";
+import * as routines from "../mods/personal-cockpit/panels/routines.js";
+import * as team from "../mods/personal-cockpit/panels/team.js";
 import Cockpit from "../mods/personal-cockpit/main.js";
 
 const ROOT = resolvePath(dirname(fileURLToPath(import.meta.url)), "..");
 const MOD_NAME = "personal-cockpit";
 const MOD = join(ROOT, "mods", MOD_NAME);
 
-/** Every .js in the mod, at any depth: the assertions below must keep holding
- *  if the files are ever grouped into subfolders. */
+/** Every .js in the mod, at any depth. The files are grouped into `kit/`,
+ *  `screens/`, `panels/` and `jira/`, so every assertion below has to walk
+ *  rather than read the one folder. */
 function sources(dir = MOD) {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
@@ -148,16 +149,16 @@ test("the only bare imports are the three the app injects", () => {
 // the app cannot decide anything, and a file that cannot reach the toolkit
 // cannot draw. One convenient import puts it back where it was.
 const ALLOWED = {
-  "kit.js": { deny: ["herdr"], why: "kit.js draws; it must not decide" },
-  "dock.js": { deny: ["gpui-kit", "gpui-base"], why: "dock.js decides; it must not draw" },
-  "checks.js": { deny: ["herdr", "gpui-kit", "gpui-base"], why: "checks.js is vocabulary" },
-  "yaml.js": { deny: ["herdr", "gpui-kit", "gpui-base"], why: "yaml.js is a parser" },
-  "urgent.js": { deny: ["herdr", "gpui-kit", "gpui-base"], why: "urgent.js is an order, not a screen" },
+  "kit/kit.js": { deny: ["herdr"], why: "kit.js draws; it must not decide" },
+  "kit/dock.js": { deny: ["gpui-kit", "gpui-base"], why: "dock.js decides; it must not draw" },
+  "kit/checks.js": { deny: ["herdr", "gpui-kit", "gpui-base"], why: "checks.js is vocabulary" },
+  "kit/yaml.js": { deny: ["herdr", "gpui-kit", "gpui-base"], why: "yaml.js is a parser" },
+  "kit/urgent.js": { deny: ["herdr", "gpui-kit", "gpui-base"], why: "urgent.js is an order, not a screen" },
 };
 
 test("the files that must not reach the app or the toolkit do not", () => {
   for (const [name, { deny, why }] of Object.entries(ALLOWED)) {
-    const path = join(MOD, name);
+    const path = join(MOD, ...name.split("/"));
     assert.ok(existsSync(path), `${name} is gone -- update this test with it`);
     const imports = [...read(path).matchAll(/\bfrom\s+["']([^"']+)["']/g)].map(([, s]) => s);
     for (const forbidden of deny) {
@@ -170,8 +171,8 @@ test("checks.js, yaml.js and urgent.js import nothing at all", () => {
   // Their empty import list is the point: it is what makes them callable from
   // a test with no setup, and what stops any of them becoming a place to put
   // things.
-  for (const name of ["checks.js", "yaml.js", "urgent.js"]) {
-    const imports = [...read(join(MOD, name)).matchAll(/\bfrom\s+["']([^"']+)["']/g)];
+  for (const name of ["kit/checks.js", "kit/yaml.js", "kit/urgent.js"]) {
+    const imports = [...read(join(MOD, ...name.split("/"))).matchAll(/\bfrom\s+["']([^"']+)["']/g)];
     assert.deepEqual(imports.map(([, s]) => s), [], `${name} has grown an import`);
   }
 });
@@ -258,22 +259,30 @@ test("the recipe's module count is the number of modules there are", () => {
   assert.ok(word, "RECIPE.md no longer says how many modules this is");
   assert.ok(word in WORDS, `"${word}" is not a number this test knows`);
 
-  const modules = readdirSync(MOD).filter((name) => name.endsWith(".js") && !name.endsWith(".d.ts"));
-  assert.equal(WORDS[word], modules.length, `the recipe says ${word}, the folder has ${modules.length}`);
+  // Every depth, not the one folder: the modules live in subfolders now, and a
+  // count of the root alone would be 1 and stay 1 however many are added.
+  const modules = modulePaths();
+  assert.equal(WORDS[word], modules.length, `the recipe says ${word}, the mod has ${modules.length}`);
 });
+
+/** Each module as the recipe spells it: `main.js`, `kit/kit.js`. */
+function modulePaths() {
+  return sources().map((path) => relative(MOD, path).split(sep).join("/")).filter((name) => !name.endsWith(".d.ts"));
+}
 
 test("every module the recipe lists is a file, and every file is listed", () => {
   // The other half: a count can be right while the list under it names a file
-  // that was renamed, or misses one that was added.
+  // that was renamed, or misses one that was added. The names carry their
+  // folder, so this also catches a file the recipe still puts in the old place.
   const recipe = read(join(ROOT, "RECIPE.md"));
-  const listed = new Set([...recipe.matchAll(/^ {2}([a-z-]+\.js)\b/gm)].map(([, name]) => name));
-  const onDisk = readdirSync(MOD).filter((name) => name.endsWith(".js") && !name.endsWith(".d.ts"));
+  const listed = new Set([...recipe.matchAll(/^ {2}((?:[a-z-]+\/)?[a-z-]+\.js)\b/gm)].map(([, name]) => name));
+  const onDisk = modulePaths();
 
   for (const name of onDisk) {
     assert.ok(listed.has(name), `RECIPE.md's Built from does not mention ${name}`);
   }
   for (const name of listed) {
-    assert.ok(existsSync(join(MOD, name)), `RECIPE.md's Built from names ${name}, which is not there`);
+    assert.ok(existsSync(join(MOD, ...name.split("/"))), `RECIPE.md's Built from names ${name}, which is not there`);
   }
 });
 
@@ -303,7 +312,7 @@ test("the shipped layout hangs the drawer off an edge, with a peek", () => {
   assert.ok(["left", "right"].includes(drawer.edge), `edge: ${drawer.edge} -- peek is for the sides only`);
   assert.equal(typeof drawer.peek, "number");
 
-  const edge = Number(read(join(MOD, "drawer.js")).match(/^const EDGE = (\d+);$/m)?.[1]);
+  const edge = Number(read(join(MOD, "screens", "drawer.js")).match(/^const EDGE = (\d+);$/m)?.[1]);
   assert.equal(drawer.peek, edge, "layouts/cockpit.json's peek and drawer.js's EDGE have drifted");
 });
 
@@ -329,6 +338,27 @@ test("neither installer copies the files the app writes into the mod folder", ()
     assert.match(body, /gpui-kit\.d\.ts/, `${name} must exclude gpui-kit.d.ts`);
     assert.match(body, /jsconfig\.json/, `${name} must exclude jsconfig.json`);
   }
+});
+
+test("both installers exclude the generated files at any depth, not just the root", () => {
+  // The app writes a gpui-kit.d.ts and a jsconfig.json into every folder it
+  // finds JavaScript in, so since the modules moved into subfolders there is
+  // one inside each. install.sh's `case` matches top-level basenames only and
+  // copied them in with the folder; it prunes by name afterwards instead.
+  // Nothing here exercises it -- a clone has no generated files and CI has no
+  // app to write them -- which is exactly why it is asserted.
+  const sh = read(join(ROOT, "tools", "install.sh"));
+  assert.match(
+    sh,
+    /find "\$dst"[^\n]*-name gpui-kit\.d\.ts[^\n]*-name jsconfig\.json[^\n]*-exec rm/,
+    "install.sh must remove the generated files from the installed subfolders",
+  );
+
+  // robocopy /XF takes bare names and excludes them in every directory it
+  // walks, so the PowerShell side needs no second pass -- but it does need the
+  // names to be bare rather than anchored to the top level.
+  const ps1 = read(join(ROOT, "tools", "install.ps1"));
+  assert.match(ps1, /\/XF\s+gpui-kit\.d\.ts\s+jsconfig\.json\b/, "install.ps1 must exclude both by bare name");
 });
 
 test("both installers copy a subfolder rather than stopping at one", () => {
@@ -367,7 +397,7 @@ test("the example configs ship, and the real ones do not", () => {
 
 test("the example configs parse, and satisfy the panels that read them", async () => {
   // An example that did not parse would seed a broken file into a fresh install.
-  const { parse } = await import("../mods/personal-cockpit/yaml.js");
+  const { parse } = await import("../mods/personal-cockpit/kit/yaml.js");
 
   const routinesFile = parse(read(join(MOD, "routines.example.yml")));
   assert.deepEqual(routinesFile.problems, [], "routines.example.yml does not parse");
@@ -387,7 +417,7 @@ test("the routines example names no queue, so a fresh file follows Kraken Tasks"
   // explicit `coordination_repo` wins over the repo picked in Kraken Tasks. So
   // one named here is a repo nobody chose, on every fresh install -- and a
   // 404 for anyone whose login cannot read it.
-  const { parse } = await import("../mods/personal-cockpit/yaml.js");
+  const { parse } = await import("../mods/personal-cockpit/kit/yaml.js");
   const { top } = parse(read(join(MOD, "routines.example.yml")));
   assert.equal(top.coordination_repo, undefined);
 });

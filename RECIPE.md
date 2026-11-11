@@ -316,59 +316,79 @@ layouts/cockpit.json          main + one panel in sidebar-lists, three in
                               right-lists, and the drawer in `floating`
 layouts/cockpit.svg           its thumbnail in Settings, named by "preview"
 mods/personal-cockpit/
-  main.js      the one exported View; picks a screen by props.kind
-  list.js      the list panel: state, refresh, setup states, keyboard, render,
-               and publishing its urgent rows for the drawer. Exports SOURCES,
-               the roster of panels there are
-  jira.js      the optional Jira screen, reusing kit.js and dock.js; no urgency rows
-  jira-model.js     pure query, pagination and shaping
-  jira-query.js     exec adapter shared by the panel and query editor
-  jira-settings.js  native JQL dialog
-  jira-bridge.mjs   read-only Node/Pi MCP connection, run as a separate process
-  package.json     private Node ES-module marker; no dependencies
-  JIRA.md          Jira setup and recovery guide
+  main.js                 the one exported View; picks a screen by props.kind
+  mod.json                { place: "none", title: "Cockpit", focusable: true,
+                            overlay: { kind: "dialog", width: 420 } }
+  package.json            private Node ES-module marker; no dependencies
+  *.svg                   pulls, team, issues, routines, urgent, refresh, plus,
+                          minus, dock-left, dock-right, settings, new-task, browse
+  *.example.yml           routines and team, seeded on install and by the gear
   jira.config.example.json  Jira site/cloud ID/JQL example; no credentials
-  picker.js    the repo dialog
-  drawer.js    the floating drawer: reads included panels' published rows, decides
-               whether to draw at all and which side the peek goes on.
-               EDGE 44 (the layout's `peek` by hand), WIDTH 320, SHOWN 9
-  gallery.js   every piece of chrome on made-up data, in one scroll
-  kit.js       the chrome a panel draws: header, rail, row, section head,
-               badge, button, spinner, shell, checkGlyph, CELL 11, WIDE 220.
-               Takes a theme and some data, returns an element — it imports
-               from the toolkit and nothing from `herdr`, so it decides nothing
-  dock.js      where a panel lives and how it moves: find / parentOf /
-               destinations / placeOf / hostBlockFor / narrowSidebar,
-               minimise, moveTo, COLLAPSED 42, COLLAPSED_MAX 60,
-               RAIL_MAX 160, RIGHT "right-lists". The reverse of kit.js — it
-               imports `herdr` and nothing from the toolkit, because it reads
-               the layout tree, decides, and sends a command back
-  checks.js    RED and RUNNING: what a commit's check rollup means, in the two
-               questions a row asks of it. Imports nothing
-  urgent.js    which of four kinds of "your move" comes first: VERBS, merge(),
-               groups(), shareKey(). An order is not a screen, so like
-               checks.js and yaml.js it imports nothing
-  github.js    gh discovery, graphql(), rest(), createIssue(), repoList(),
-               issueTemplates(), viewer(), ago(), agoShort(), the typed error
-               kinds, and demo mode (one file answers every call)
-  config.js    repoOf / choose / recent / forget, and the precedence
-  conf.js      config paths, YAML reads and shared YAML/JSON file opener
-  yaml.js      the five-construct YAML reader those files are written in
-  pulls.js     the GraphQL query, shaping, grouping and row for your PRs
-  team.js      the search, searchFor(), shaping, grouping by person, and row
-  issues.js    the REST call, slimming, cache, grouping and row for issues
-  routines.js  the routines file, the marker, the ▶ that opens a task
-  mod.json     { place: "none", title: "Cockpit", focusable: true,
-                 overlay: { kind: "dialog", width: 420 } }
-  *.svg        pulls, team, issues, routines, urgent, refresh, plus, minus,
-               dock-left, dock-right, settings, new-task, browse
-  *.example.yml  routines and team, seeded on install and by the gear
+
+  kit/kit.js              the chrome a panel draws: header, rail, row, section
+                          head, badge, button, spinner, shell, checkGlyph,
+                          CELL 11, WIDE 220. Takes a theme and some data,
+                          returns an element — it imports from the toolkit and
+                          nothing from `herdr`, so it decides nothing
+  kit/dock.js             where a panel lives and how it moves: find / parentOf /
+                          destinations / placeOf / hostBlockFor / narrowSidebar,
+                          minimise, moveTo, COLLAPSED 42, COLLAPSED_MAX 60,
+                          RAIL_MAX 160, RIGHT "right-lists". The reverse of
+                          kit.js — it imports `herdr` and nothing from the
+                          toolkit, because it reads the layout tree, decides,
+                          and sends a command back
+  kit/checks.js           RED and RUNNING: what a commit's check rollup means,
+                          in the two questions a row asks of it. Imports nothing
+  kit/urgent.js           which of four kinds of "your move" comes first: VERBS,
+                          merge(), groups(), shareKey(). An order is not a
+                          screen, so like checks.js and yaml.js it imports nothing
+  kit/github.js           gh discovery, graphql(), rest(), createIssue(),
+                          repoList(), issueTemplates(), viewer(), ago(),
+                          agoShort(), the typed error kinds, and demo mode
+                          (one file answers every call)
+  kit/config.js           repoOf / choose / recent / forget, and the precedence
+  kit/conf.js             config paths, YAML reads and shared YAML/JSON file opener
+  kit/yaml.js             the five-construct YAML reader those files are written in
+
+  screens/list.js         the list panel: state, refresh, setup states, keyboard,
+                          render, and publishing its urgent rows for the drawer.
+                          Exports SOURCES, the roster of panels there are
+  screens/drawer.js       the floating drawer: reads included panels' published
+                          rows, decides whether to draw at all and which side the
+                          peek goes on. EDGE 44 (the layout's `peek` by hand),
+                          WIDTH 320, SHOWN 9
+  screens/gallery.js      every piece of chrome on made-up data, in one scroll
+  screens/picker.js       the repo dialog
+
+  panels/pulls.js         the GraphQL query, shaping, grouping and row for your PRs
+  panels/team.js          the search, searchFor(), shaping, grouping by person, and row
+  panels/issues.js        the REST call, slimming, cache, grouping and row for issues
+  panels/routines.js      the routines file, the marker, the ▶ that opens a task
+
+  jira/jira.js            the optional Jira screen, reusing kit.js and dock.js;
+                          no urgency rows
+  jira/jira-model.js      pure query, pagination and shaping
+  jira/jira-query.js      exec adapter shared by the panel and query editor
+  jira/jira-settings.js   native JQL dialog
+  jira/jira-bridge.mjs    read-only Node/Pi MCP connection, run as a separate
+                          process. Its default config path climbs to the mod
+                          root, where `jira.config.json` stays
+  jira/JIRA.md            Jira setup and recovery guide
 tools/sandbox.sh, tools/sandbox.ps1   a throwaway Herdr home on made-up data
 tools/demo.mjs, tools/demo/           the made-up world it runs on
 ```
 
-One mod, twenty-one modules at its root, plus the separate `jira-bridge.mjs`
-Node process; Jira-specific helpers are named `jira-*`.
+One mod, twenty-one modules in four folders, plus the separate
+`jira-bridge.mjs` Node process; Jira-specific helpers are named `jira-*`.
+
+The folders are grouping, not boundaries: a mod may hold subfolders and import
+freely between them, and `main.js` must stay at the mod root. `kit/` is what
+every screen shares, `screens/` is the things a `kind` resolves to, `panels/`
+the four list sources `screens/list.js` draws, and `jira/` the optional screen
+with its own model, adapter, dialog and Node bridge. Assets, the manifest and
+the person's config files stay at the root, because an asset path is resolved
+from the Herdr home rather than from the file naming it, and because both
+installers preserve the config files by top-level basename.
 The only exported View is `main.js`; there is one `mod.json` and one
 set of panel chrome/docking helpers and assets. The Node bridge is executed as a
 separate process, never imported into the native runtime. Nothing in `tools/`

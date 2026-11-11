@@ -7,9 +7,9 @@
 // extra call that looking up the login would cost).
 
 import { div } from "gpui-kit";
-import { graphql, ago, agoShort } from "./github.js";
-import { RED, RUNNING } from "./checks.js";
-import { checkGlyph, row } from "./kit.js";
+import { graphql, ago, agoShort } from "../kit/github.js";
+import { RED, RUNNING } from "../kit/checks.js";
+import { checkGlyph, row } from "../kit/kit.js";
 
 export const panel = "pulls";
 // "My", because the panel below it is the same list for other people. The

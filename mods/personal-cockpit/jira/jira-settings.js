@@ -1,8 +1,8 @@
 import { div } from "gpui-kit";
 import { h_flex, v_flex, Textarea, TextareaState } from "gpui-base";
 import { closeOverlay, props, run, theme, writeTextFile } from "herdr";
-import { openFile } from "./conf.js";
-import { button as cockpitButton } from "./kit.js";
+import { openFile } from "../kit/conf.js";
+import { button as cockpitButton } from "../kit/kit.js";
 import { configOf, DEFAULT_JQL } from "./jira-model.js";
 import { configPath, executeQuery } from "./jira-query.js";
 

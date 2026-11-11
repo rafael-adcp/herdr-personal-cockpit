@@ -8,7 +8,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { List } from "../mods/personal-cockpit/list.js";
+import { List } from "../mods/personal-cockpit/screens/list.js";
 import { host, reset } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
 import { gh, apiCalls } from "./support/gh.js";

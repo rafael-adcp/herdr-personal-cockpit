@@ -8,7 +8,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { pathOf, read, openFile } from "../mods/personal-cockpit/conf.js";
+import { pathOf, read, openFile } from "../mods/personal-cockpit/kit/conf.js";
 import { host, reset } from "./support/host/herdr.js";
 
 const FILE = "team.yml";

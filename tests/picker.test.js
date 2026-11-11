@@ -6,8 +6,8 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { Picker } from "../mods/personal-cockpit/picker.js";
-import { recent, repoOf } from "../mods/personal-cockpit/config.js";
+import { Picker } from "../mods/personal-cockpit/screens/picker.js";
+import { recent, repoOf } from "../mods/personal-cockpit/kit/config.js";
 import { host, reset, theme } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
 import { gh, apiCalls } from "./support/gh.js";

@@ -12,9 +12,9 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { Drawer } from "../mods/personal-cockpit/drawer.js";
-import { List } from "../mods/personal-cockpit/list.js";
-import { shareKey } from "../mods/personal-cockpit/urgent.js";
+import { Drawer } from "../mods/personal-cockpit/screens/drawer.js";
+import { List } from "../mods/personal-cockpit/screens/list.js";
+import { shareKey } from "../mods/personal-cockpit/kit/urgent.js";
 import { host, reset } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
 import { gh } from "./support/gh.js";
