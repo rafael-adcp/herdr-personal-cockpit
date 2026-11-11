@@ -25,7 +25,7 @@ import * as conf from "../kit/conf.js";
 
 export const panel = "routines";
 export const title = "Routines";
-export const icon = "mods/personal-cockpit/routines.svg";
+export const icon = "mods/personal-cockpit/icons/routines.svg";
 // The queue is the Kraken Tasks panel's repo, or routines.yml's own
 // `coordination_repo`. Either way it is not a per-panel pick, so no picker.
 export const needsRepo = false;

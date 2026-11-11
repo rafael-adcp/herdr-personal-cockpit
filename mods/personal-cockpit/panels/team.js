@@ -23,7 +23,7 @@ import * as conf from "../kit/conf.js";
 
 export const panel = "team";
 export const title = "Team's pull requests";
-export const icon = "mods/personal-cockpit/team.svg";
+export const icon = "mods/personal-cockpit/icons/team.svg";
 // The search lives in team.yml, not in a repo pick, so there is no picker: the
 // gear opens the file.
 export const needsRepo = false;

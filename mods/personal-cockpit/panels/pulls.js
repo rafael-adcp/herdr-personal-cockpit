@@ -16,7 +16,7 @@ export const panel = "pulls";
 // `panel` key stays "pulls": it names the layout block, the height remembered
 // in shared state and the cache, and none of those are the title.
 export const title = "My pull requests";
-export const icon = "mods/personal-cockpit/pulls.svg";
+export const icon = "mods/personal-cockpit/icons/pulls.svg";
 export const needsRepo = false;
 // Slow on purpose: a sidebar panel keeps its timers while hidden.
 export const refreshMs = 180000;

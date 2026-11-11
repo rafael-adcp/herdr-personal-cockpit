@@ -108,7 +108,7 @@ export class Jira {
     const selected = ordered[this.at];
     const trouble = this.stale ?? this.error;
     const stamp = this.data ? `${this.data.jql}\nLast updated: ${new Date(this.data.at).toLocaleString()}` : "Refresh assigned Jira tickets";
-    const body = [railed ? rail(t, "mods/personal-cockpit/issues.svg", 0) : header(t, {
+    const body = [railed ? rail(t, "mods/personal-cockpit/icons/issues.svg", 0) : header(t, {
       id: "jira",
       title: "My Jira tickets",
       count: this.data ? this.items.length : 0,

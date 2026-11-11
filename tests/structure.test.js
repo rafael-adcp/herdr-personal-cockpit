@@ -52,22 +52,60 @@ const shown = (path) => relative(ROOT, path).split(sep).join("/");
 // one is a decision somebody made, not something that crept in.
 const BORROWED = new Set(["mods/workspace-chrome/spinner.svg"]);
 
-/** Every asset the mod names, and the file that named it. */
+/**
+ * Every asset the mod names, and the file that named it.
+ *
+ * Found by the shape of the path rather than by the call it sits in. Scanning
+ * `svg(...)` and `image(...)` calls saw one asset out of fourteen -- the
+ * borrowed spinner -- because every icon this mod draws itself reaches `svg()`
+ * somewhere else: as an argument to `action()` or `rail()`, or as a panel's
+ * exported `icon`. So the two tests below ran over one path, and the thirteen
+ * that could actually be moved or renamed were unchecked. An asset path is a
+ * string either way, and `mods/<name>/<file>.svg` is a shape nothing else has.
+ *
+ * `${...}` is expanded from the string literals inside it, because two of the
+ * paths are built that way (`dock-${here ? "left" : "right"}.svg`). A `${...}`
+ * holding no literals cannot be resolved to a filename, and is returned as
+ * found so that the test reports it rather than passing over it.
+ */
 function assets() {
   const found = new Map();
+  // `/` is in the class, so the path may be at any depth under the mod: the
+  // icons live in `icons/`, and a pattern that stopped at one segment would
+  // match none of them and quietly leave the two tests below with nothing to
+  // check but the borrowed spinner.
+  const shape = /mods\/[A-Za-z0-9-]+\/(?:[A-Za-z0-9._/-]|\$\{[^}]*\})+\.svg/g;
   for (const path of sources()) {
-    for (const [, asset] of read(path).matchAll(/(?:svg|image)\(\s*["'`]([^"'`]+)["'`]/g)) {
-      found.set(asset, shown(path));
+    for (const [asset] of read(path).matchAll(shape)) {
+      for (const expanded of expand(asset)) found.set(expanded, shown(path));
     }
   }
   return found;
+}
+
+/** `a-${x ? "b" : "c"}.svg` -> `a-b.svg`, `a-c.svg`. */
+function expand(asset) {
+  const match = /\$\{[^}]*\}/.exec(asset);
+  if (!match) return [asset];
+  const literals = [...match[0].matchAll(/["']([^"']*)["']/g)].map(([, value]) => value);
+  if (literals.length === 0) return [asset];
+  return literals.flatMap((value) => expand(asset.replace(match[0], value)));
 }
 
 test("every asset path is relative to the Herdr home", () => {
   // A path outside it resolves to nothing and draws nothing, with no error
   // anywhere -- the bug the README's junction warning is about.
   const referenced = assets();
-  assert.ok(referenced.size > 0, "no assets found at all -- has the regex stopped matching?");
+  // Not `> 0`: that is what let the scan sit at one asset out of fourteen
+  // without anybody noticing, and it passed again the moment the icons moved
+  // into `icons/` and the pattern stopped reaching them. Every icon that ships
+  // is drawn by something (asserted below) and so is every borrowed one, so
+  // the count is exactly that -- and a pattern that stops matching says so.
+  assert.equal(
+    referenced.size,
+    shipped(".svg").length + BORROWED.size,
+    "the asset scan is not finding every path -- has the pattern stopped matching?",
+  );
   for (const [asset, from] of referenced) {
     assert.match(asset, /^mods\/[^/]+\//, `${from}: "${asset}" must start with mods/<name>/`);
   }
@@ -103,15 +141,38 @@ test("every panel's icon is a file that is there", () => {
   }
 });
 
-test("every svg in the folder is valid xml with a viewBox", () => {
+/** Every file the mod ships with this extension, at any depth, spelled the way
+ *  an asset string names it: from the Herdr home, with forward slashes. */
+function shipped(ext, dir = MOD) {
+  return readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) return shipped(ext, path);
+    return name.endsWith(ext) ? [relative(ROOT, path).split(sep).join("/")] : [];
+  });
+}
+
+test("every svg the mod ships is valid xml with a viewBox", () => {
   // A malformed one fails the same silent way a missing one does.
-  const icons = readdirSync(MOD).filter((name) => name.endsWith(".svg"));
+  const icons = shipped(".svg");
   assert.ok(icons.length > 0);
-  for (const name of icons) {
-    const body = read(join(MOD, name));
-    assert.match(body, /<svg[\s>]/, name);
-    assert.match(body, /viewBox=/, `${name} has no viewBox, so it will not scale`);
-    assert.match(body, /<\/svg>\s*$/, `${name} is truncated`);
+  for (const asset of icons) {
+    const body = read(join(ROOT, asset));
+    assert.match(body, /<svg[\s>]/, asset);
+    assert.match(body, /viewBox=/, `${asset} has no viewBox, so it will not scale`);
+    assert.match(body, /<\/svg>\s*$/, `${asset} is truncated`);
+  }
+});
+
+test("every svg the mod ships is one something draws", () => {
+  // The other direction from the test above: that one catches a path naming a
+  // file that is not there, this one an icon no path names. Renaming or moving
+  // the icons trips one of the two whichever half is forgotten -- which is the
+  // only guard there is, since an asset path is a string assembled at run time
+  // and resolved from the Herdr home, so nothing fails at build time and a
+  // broken one draws nothing and reports nothing.
+  const referenced = new Set(assets().keys());
+  for (const asset of shipped(".svg")) {
+    assert.ok(referenced.has(asset), `${asset} ships, but nothing draws it`);
   }
 });
 

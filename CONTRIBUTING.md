@@ -25,13 +25,13 @@ files — a change that makes the recipe wrong is unfinished.
 ## The screens
 
 One mod, one entry point. `main.js` is required at the mod root and `mod.json`
-says where it first appears. Everything else is grouped into four folders --
+says where it first appears. Everything else is grouped into five folders --
 `kit/` what every screen shares, `screens/` what a `kind` resolves to,
 `panels/` the four list sources, `jira/` the optional screen with its own
-model, adapter, dialog and Node process. A mod may hold subfolders and import
-freely between them; what it cannot do is import out of its own folder, which
-is why this is one mod and not five. There is no second mod, manifest, or copy
-of the panel controls:
+model, adapter, dialog and Node process, and `icons/` the art. A mod may hold
+subfolders and import freely between them; what it cannot do is import out of
+its own folder, which is why this is one mod and not five. There is no second
+mod, manifest, or copy of the panel controls:
 
 | File | Its one job |
 |---|---|
@@ -51,12 +51,24 @@ of the panel controls:
 | `kit/conf.js` | config paths, YAML reads and shared YAML/JSON file opener |
 | `kit/yaml.js` | reads the five constructs those files use |
 
-Assets, `mod.json`, `package.json` and the person's config files stay at the
-mod root: an asset path is resolved from the Herdr home rather than from the
-file that names it, `package.json` is what makes every `.js` beneath it load as
-ESM, and both installers preserve the config files by top-level basename. The
-app also writes a `gpui-kit.d.ts` into each folder holding JavaScript, so there
-is one per subfolder; `.gitignore` and both installers exclude them by name.
+`mod.json`, `package.json` and the person's config files stay at the mod root:
+`package.json` is what makes every `.js` beneath it load as ESM, and both
+installers preserve the config files by top-level basename, which cannot reach
+into a subfolder. The app also writes a `gpui-kit.d.ts` into each folder
+holding JavaScript, so there is one per subfolder; `.gitignore` and both
+installers exclude them by name.
+
+The art is the one thing a move cannot break by import. An asset path is
+resolved from the Herdr home rather than from the file that names it, so
+`icons/` costs no `../` anywhere — but it also means nothing fails at build
+time, and an icon that does not load draws nothing and reports nothing. Two
+assertions in `tests/structure.test.js` are the whole guard: every asset path
+the mod names must be a file that is there, and every icon that ships must be
+drawn by something. It finds the paths by their shape rather than by the call
+they sit in, because they reach `svg()` as an argument to `action()` or
+`rail()` or as a panel's exported `icon`, and it expands the two that are
+assembled (`icons/dock-${here ? "left" : "right"}.svg`). If you add an icon,
+those two tests are what tell you that you wired it up.
 
 The import lists are worth reading as the design. `kit.js` imports from the
 toolkit and nothing from `herdr`: it takes a theme and some data and returns an
