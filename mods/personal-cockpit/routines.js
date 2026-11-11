@@ -29,6 +29,12 @@ export const icon = "mods/personal-cockpit/routines.svg";
 // The queue is the Kraken Tasks panel's repo, or routines.yml's own
 // `coordination_repo`. Either way it is not a per-panel pick, so no picker.
 export const needsRepo = false;
+// The panel whose pick is the queue when the file names none. Exported so the
+// screen can watch it: this panel has no repo of its own, so without that a
+// repo chosen in Kraken Tasks would not reach it until the next poll -- which
+// is a minute of nothing happening after the one action offered as the way out
+// of a 404.
+export const repoFrom = "issues";
 export const refreshMs = 60000;
 export const loading = "Reading routines…";
 export const empty = "No routines";
@@ -174,10 +180,27 @@ export async function load() {
     return { items: [noFile(file.path)], meta: { repo: null, problems, path: file.path } };
   }
 
-  const repo = String(file.config.coordination_repo ?? "").trim() || repoOf("issues").repo;
+  const named = String(file.config.coordination_repo ?? "").trim();
+  const repo = named || repoOf(repoFrom).repo;
   if (!repo) {
     problems.push(`no queue: set \`coordination_repo\` in ${FILE}, or pick a repo in Kraken Tasks`);
     return { items: [], meta: { repo: null, problems } };
+  }
+
+  // The queue is resolved in here, out of a file the screen does not read, so a
+  // failure that leaves nothing to draw has to carry the repo it was about --
+  // otherwise the panel can only say "no access to" the repo it has, which for
+  // this one is none.
+  //
+  // `repoPanel` is which pick decides it, and that is what the way out of a 404
+  // turns on: a picker writing `cockpit.<panel>.repo` fixes the fallback and
+  // changes nothing at all when the file named the repo outright, where the
+  // file is the only thing worth opening.
+  let issues;
+  try {
+    issues = await recent(repo);
+  } catch (e) {
+    throw Object.assign(e, { repo, repoPanel: named ? null : repoFrom });
   }
 
   // Newest first, so the first marker seen for a title is that routine's latest
@@ -187,7 +210,7 @@ export async function load() {
   // Every number the list returned, which is how a held task is told apart from
   // the ones that came before it.
   const listed = new Set();
-  for (const issue of await recent(repo)) {
+  for (const issue of issues) {
     listed.add(issue.number);
     const marker = markerOf(issue.body);
     if (!marker) continue;

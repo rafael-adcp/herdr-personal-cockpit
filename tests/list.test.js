@@ -11,9 +11,10 @@ import assert from "node:assert/strict";
 
 import { List } from "../mods/personal-cockpit/list.js";
 import { shareKey } from "../mods/personal-cockpit/urgent.js";
-import { host, reset } from "./support/host/herdr.js";
+import { host, reset, theme } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
-import { gh, apiCalls } from "./support/gh.js";
+import { gh, apiCalls, fails } from "./support/gh.js";
+import { handlerOf, textOf } from "./support/element.js";
 import { tree, panelBlock, prNode, issue } from "./support/factories.js";
 
 const view = {};
@@ -412,6 +413,108 @@ test("the gear of the repo-keyed panel opens the picker as an overlay", () => {
   assert.equal(host.overlays.length, 1);
   assert.equal(host.overlays[0].mod, "personal-cockpit");
   assert.equal(host.overlays[0].props.kind, "repo-picker");
+  assert.equal(host.overlays[0].props.panel, "issues");
+});
+
+// ---- the way out of "no access" -------------------------------------------
+
+// A 404 is GitHub's answer for a repo that is not there *and* for one this login
+// cannot see, so the screen cannot resolve it -- a person has to. These are
+// about it naming the right repo and offering the one thing that changes it.
+
+const ROUTINES_FILE = "/herdr/mods/personal-cockpit/routines.yml";
+
+/** A routines file for one valid routine, with or without a named queue. */
+const routinesFile = (queue) =>
+  [
+    ...(queue ? [`coordination_repo: ${queue}`] : []),
+    "routines:",
+    "  - title: One",
+    "    project: p",
+    "    goal: g",
+    "    acceptance: a",
+  ].join("\n");
+
+/** A panel left in "no access", and the screen it draws for it. */
+async function noAccess(kind, context) {
+  host.props = { kind };
+  // Every request about the repo, so this covers the issue list of either
+  // panel and the template lookup that follows one of them.
+  gh([["repos/", fails("HTTP 404: Not Found")]]);
+  const list = new List(view, context);
+  await context.settle();
+  assert.equal(list.state, "not-found", `${kind} did not reach "no access"`);
+  return { list, screen: list.setup(theme()) };
+}
+
+test("a panel that watches a repo names its own, and offers its own picker", async () => {
+  host.shared.set("cockpit.issues.repo", "acme/gone");
+  const context = cx({ spawn: "run" });
+  const { screen } = await noAccess("issues", context);
+
+  assert.match(textOf(screen).join(" "), /No access to acme\/gone/);
+  handlerOf(screen, "on_click")({}, context);
+  assert.equal(host.overlays[0].props.panel, "issues");
+  assert.equal(host.overlays[0].props.current, "acme/gone");
+});
+
+test("Routines names the repo its request was for, not the none it holds itself", async () => {
+  // `this.repo` is null for a panel whose source finds its own repo, which is
+  // what used to be interpolated here: "No access to null".
+  host.files.set(ROUTINES_FILE, routinesFile("acme/inaccessible"));
+  const { list, screen } = await noAccess("routines", cx({ spawn: "run" }));
+  assert.equal(list.repo, null);
+  assert.match(textOf(screen).join(" "), /No access to acme\/inaccessible/);
+});
+
+test("a queue named in routines.yml offers that file, not a picker nothing reads", async () => {
+  // The picker writes `cockpit.routines.repo`, which the routines loader never
+  // looks at: with an explicit `coordination_repo` it is a dialog that asks a
+  // question and throws the answer away.
+  host.files.set(ROUTINES_FILE, routinesFile("acme/inaccessible"));
+  const context = cx({ spawn: "run" });
+  const { screen } = await noAccess("routines", context);
+
+  assert.ok(textOf(screen).includes("Open routines.yml"), textOf(screen).join(" "));
+  handlerOf(screen, "on_click")({}, context);
+  await context.settle();
+
+  assert.deepEqual(host.overlays, [], "a picker cannot change a repo the file names");
+  assert.ok(host.exec.some((call) => call.command === "xdg-open"), "the file was not opened");
+});
+
+test("a queue inherited from Kraken Tasks offers a picker that writes that panel's key", async () => {
+  host.shared.set("cockpit.issues.repo", "acme/fallback");
+  host.files.set(ROUTINES_FILE, routinesFile(null));
+  const context = cx({ spawn: "run" });
+  const { screen } = await noAccess("routines", context);
+
+  assert.match(textOf(screen).join(" "), /No access to acme\/fallback/);
+  handlerOf(screen, "on_click")({}, context);
+
+  assert.equal(host.overlays.length, 1);
+  assert.equal(host.overlays[0].props.panel, "issues", "the pick would have gone where nothing reads it");
+  assert.equal(host.overlays[0].props.current, "acme/fallback");
+});
+
+test("a repo picked in Kraken Tasks reloads Routines, rather than leaving it a poll behind", async () => {
+  // The other half of offering that picker: a minute of the same 404 after
+  // choosing an accessible queue reads as the button having done nothing.
+  host.shared.set("cockpit.issues.repo", "acme/one");
+  host.files.set(ROUTINES_FILE, routinesFile(null));
+  host.props = { kind: "routines" };
+  gh([["state=all", []]]);
+  const context = cx({ spawn: "run" });
+  const list = new List(view, context);
+  await context.settle();
+  assert.equal(list.meta.repo, "acme/one");
+
+  host.shared.set("cockpit.issues.repo", "acme/two");
+  list.render(context);
+  await context.tick(0);
+
+  assert.equal(list.meta.repo, "acme/two");
+  assert.equal(list.state, "ok", "a panel that needs no repo must not ask for one");
 });
 
 // ---- commands the app sends -----------------------------------------------

@@ -168,8 +168,13 @@ for all four panels, and The floating drawer. Everything on it is made up.
 - **Setup instead of an empty box.** `gh` missing offers Install gh (a terminal
   tab running `winget install --id GitHub.cli -e`; macOS and Linux get the
   one-liner as text). Not signed in offers Sign in (`gh auth login` in a tab).
-  No repo chosen offers Choose repository. No access offers Choose another.
-  Any other failure offers Try again.
+  No repo chosen offers Choose repository. No access names the repo the failed
+  request was actually for — which for Routines is resolved inside its own load,
+  so the repo rides out on the error rather than being read off the panel — and
+  offers whatever decides that repo: Choose another where a pick does, and Open
+  routines.yml where `coordination_repo` named it outright, because a picker
+  there writes a key the routines loader never reads. Any other failure offers
+  Try again.
 - **Choosing the repo.** The gear, or `c` with the keyboard, opens a 420 px
   dialog: a text field taking `owner/name`, the repos picked before (each with
   a `✕` to forget it), and suggestions from `gh repo list` — of your own
@@ -198,6 +203,12 @@ for all four panels, and The floating drawer. Everything on it is made up.
   kraken's `PROTOCOL.md` §1 and §2, not a style choice: a task with no project
   label is invisible to every conforming worker. The row carries `task created`
   for 6 s, and after that the list says it on its own.
+- **Routines' queue follows Kraken Tasks unless the file overrides it.**
+  `coordination_repo` wins where it is set, and `routines.example.yml` leaves it
+  commented out: both installers and the gear seed `routines.yml` from that
+  example, so a repo named there would be a queue nobody chose on every fresh
+  install. Without it the panel watches `cockpit.issues.repo` and reloads on the
+  frame it changes, exactly as the panel that owns that pick does.
 - **A routine is identified by its title**, written into an HTML comment in the
   body (`<!-- routine {"title":"…"} -->`, kraken's own marker convention) and
   read back to tell whose task is whose. So renaming the *issue* on GitHub is
@@ -618,6 +629,13 @@ adding a connection to one of these, and do not estimate.
   pressing Enter replaces the list without a restart, and the repo appears
   under Recent next time.
 - Typing a repo you cannot read gives `no access` and a Choose another button.
+- A freshly-seeded `routines.yml` names no `coordination_repo`, so Routines
+  watches the queue picked in Kraken Tasks and changes with it.
+- A `coordination_repo` the login cannot read gives `no access to <that repo>`
+  — named, not `null` — and Open routines.yml. Commenting it out puts Routines
+  back on the Kraken Tasks queue on the next poll; with it already commented
+  out, the same 404 offers Choose another instead, and the pick lands on both
+  panels at once.
 - `layout.resize {"id": "sidebar", "px": 120}` turns every panel into a rail
   with its count, and resizing back to 268 restores the rows. Not by dragging:
   the shipped `sidebar` is `resizable: false`, so there is no boundary to pull.
