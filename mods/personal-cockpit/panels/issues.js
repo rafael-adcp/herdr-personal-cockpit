@@ -12,7 +12,7 @@ import { row } from "../kit/kit.js";
 
 export const panel = "issues";
 export const title = "Kraken Tasks";
-export const icon = "mods/personal-cockpit/issues.svg";
+export const icon = "mods/personal-cockpit/icons/issues.svg";
 export const needsRepo = true;
 export const refreshMs = 60000;
 export const loading = "Loading tasks…";

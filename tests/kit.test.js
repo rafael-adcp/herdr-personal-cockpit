@@ -61,8 +61,8 @@ test("the check glyph builds for every state, including the absences", () => {
 });
 
 test("the rail builds, with and without a count", () => {
-  assert.doesNotThrow(() => rail(t, "mods/personal-cockpit/pulls.svg", 0));
-  assert.doesNotThrow(() => rail(t, "mods/personal-cockpit/pulls.svg", 7));
+  assert.doesNotThrow(() => rail(t, "mods/personal-cockpit/icons/pulls.svg", 0));
+  assert.doesNotThrow(() => rail(t, "mods/personal-cockpit/icons/pulls.svg", 7));
 });
 
 // ---- the row --------------------------------------------------------------

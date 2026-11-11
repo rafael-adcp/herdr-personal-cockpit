@@ -320,10 +320,13 @@ mods/personal-cockpit/
   mod.json                { place: "none", title: "Cockpit", focusable: true,
                             overlay: { kind: "dialog", width: 420 } }
   package.json            private Node ES-module marker; no dependencies
-  *.svg                   pulls, team, issues, routines, urgent, refresh, plus,
-                          minus, dock-left, dock-right, settings, new-task, browse
   *.example.yml           routines and team, seeded on install and by the gear
   jira.config.example.json  Jira site/cloud ID/JQL example; no credentials
+
+  icons/*.svg             thirteen: pulls, team, issues, routines, urgent,
+                          refresh, plus, minus, dock-left, dock-right, settings,
+                          new-task, browse. Named from the Herdr home, so the
+                          folder is part of the string every caller passes
 
   kit/kit.js              the chrome a panel draws: header, rail, row, section
                           head, badge, button, spinner, shell, checkGlyph,
@@ -384,11 +387,20 @@ One mod, twenty-one modules in four folders, plus the separate
 The folders are grouping, not boundaries: a mod may hold subfolders and import
 freely between them, and `main.js` must stay at the mod root. `kit/` is what
 every screen shares, `screens/` is the things a `kind` resolves to, `panels/`
-the four list sources `screens/list.js` draws, and `jira/` the optional screen
-with its own model, adapter, dialog and Node bridge. Assets, the manifest and
-the person's config files stay at the root, because an asset path is resolved
-from the Herdr home rather than from the file naming it, and because both
-installers preserve the config files by top-level basename.
+the four list sources `screens/list.js` draws, `jira/` the optional screen with
+its own model, adapter, dialog and Node bridge, and `icons/` the art.
+
+The manifest, `package.json` and the person's config files stay at the root:
+`package.json` is what makes every `.js` beneath it load as ESM, and both
+installers preserve the config files by top-level basename, which cannot reach
+into a subfolder. `icons/` is free to be a folder for the opposite reason -- an
+asset path is resolved from the Herdr home rather than from the file that names
+it, so moving the art does not change how any module refers to it, only what
+the string says. Nothing checks those strings at build time, which is why
+`tests/structure.test.js` scans every asset path the mod names, expands the two
+that are assembled (`icons/dock-${here ? "left" : "right"}.svg`), and asserts
+both directions: every path names a file that is there, and every icon that
+ships is drawn by something.
 The only exported View is `main.js`; there is one `mod.json` and one
 set of panel chrome/docking helpers and assets. The Node bridge is executed as a
 separate process, never imported into the native runtime. Nothing in `tools/`

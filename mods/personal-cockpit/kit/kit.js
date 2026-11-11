@@ -103,16 +103,16 @@ export function header(t, o) {
   // looks at something. Its own glyph, not the bare plus the expand button
   // uses: a collapsed panel shows both at once.
   if (o.onNew) {
-    actions.push(action(t, `${o.id}-new`, o.newTip, "mods/personal-cockpit/new-task.svg", (_e, cx) => o.onNew(cx)));
+    actions.push(action(t, `${o.id}-new`, o.newTip, "mods/personal-cockpit/icons/new-task.svg", (_e, cx) => o.onNew(cx)));
   }
   actions.push(
-    o.busy ? spinner(t) : action(t, `${o.id}-refresh`, o.stamp, "mods/personal-cockpit/refresh.svg", (_e, cx) => o.onRefresh(cx)),
+    o.busy ? spinner(t) : action(t, `${o.id}-refresh`, o.stamp, "mods/personal-cockpit/icons/refresh.svg", (_e, cx) => o.onRefresh(cx)),
   );
   if (o.onConfigure) {
-    actions.push(action(t, `${o.id}-configure`, o.configureTip ?? "Settings", "mods/personal-cockpit/settings.svg", (_e, cx) => o.onConfigure(cx)));
+    actions.push(action(t, `${o.id}-configure`, o.configureTip ?? "Settings", "mods/personal-cockpit/icons/settings.svg", (_e, cx) => o.onConfigure(cx)));
   }
   if (o.onBrowse) {
-    actions.push(action(t, `${o.id}-browser`, o.browseTip, "mods/personal-cockpit/browse.svg", (_e, cx) => o.onBrowse(cx)));
+    actions.push(action(t, `${o.id}-browser`, o.browseTip, "mods/personal-cockpit/icons/browse.svg", (_e, cx) => o.onBrowse(cx)));
   }
   if (o.place) {
     const here = o.place === "right";
@@ -121,7 +121,7 @@ export function header(t, o) {
         t,
         `${o.id}-move`,
         here ? "Move to the left sidebar" : "Move to the right column",
-        `mods/personal-cockpit/dock-${here ? "left" : "right"}.svg`,
+        `mods/personal-cockpit/icons/dock-${here ? "left" : "right"}.svg`,
         () => o.onMove(here ? "sidebar" : "right"),
       ),
     );
@@ -132,7 +132,7 @@ export function header(t, o) {
         t,
         `${o.id}-minimise`,
         o.collapsed ? "Expand" : "Minimise",
-        `mods/personal-cockpit/${o.collapsed ? "plus" : "minus"}.svg`,
+        `mods/personal-cockpit/icons/${o.collapsed ? "plus" : "minus"}.svg`,
         () => o.onMinimise(),
       ),
     );

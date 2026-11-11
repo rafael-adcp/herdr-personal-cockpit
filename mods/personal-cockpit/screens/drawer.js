@@ -25,7 +25,7 @@ import { CELL, badge, row, sectionHead } from "../kit/kit.js";
 import { SOURCES } from "./list.js";
 import { groups, merge, shareKey } from "../kit/urgent.js";
 
-export const ICON = "mods/personal-cockpit/urgent.svg";
+export const ICON = "mods/personal-cockpit/icons/urgent.svg";
 
 // What the layout leaves showing. `peek` in layouts/cockpit.json is the same
 // number by hand: the strip has to be exactly it, or the count sits half off
