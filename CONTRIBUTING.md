@@ -44,7 +44,8 @@ mod, manifest, or copy of the panel controls:
 | `panels/pulls.js` `panels/issues.js` `panels/routines.js` `panels/team.js` | the four panels — one role, four players |
 | `kit/dock.js` | where a panel lives, and how it moves |
 | `kit/kit.js` | the chrome a panel draws |
-| `kit/urgent.js` | which of four kinds of "your move" comes first |
+| `kit/urgent.js` | which of five kinds of "your move" comes first, and how long a row stays put off |
+| `kit/agents.js` | the blocked agents in the terminals, as drawer rows |
 | `kit/checks.js` | what a commit's check rollup means |
 | `kit/github.js` | everything that talks to GitHub, through `gh`, and demo mode |
 | `kit/config.js` | which repo a panel watches |
@@ -77,6 +78,14 @@ element, so it cannot decide anything. `dock.js` is the reverse — it imports
 and sends a command back. `checks.js`, `yaml.js` and `urgent.js` import nothing
 at all. A file whose dependencies state its job is one you can put down and
 pick up. `tests/structure.test.js` asserts all of it.
+
+Not everything that puts a row on the drawer is a panel. `kit/agents.js` is not
+one: the reason panels publish instead of the drawer asking for itself is that
+asking GitHub twice costs two rounds of calls on two clocks, and the agents cost
+one live read of state the app already holds. So the drawer reads them, and
+there is no block, no height and no shared key to go stale. Weigh the next kind
+of row the same way — by what the read costs, not by whether it looks like a
+list.
 
 The four panels are interchangeable to `list.js`, so they are players of one
 role rather than four special cases: each exports the same `load`, `sections`,

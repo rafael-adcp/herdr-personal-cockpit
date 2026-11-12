@@ -43,16 +43,17 @@ The local `jira.config.json` is preserved on reinstall, like the YAML configs.
 ## The drawer on the edge
 
 Hanging off the left edge of the window is a 44px strip with a count: what is
-waiting on you across **My pull requests**, **Kraken Tasks** and **Routines**.
+waiting on you across **My pull requests**, **Kraken Tasks** and **Routines** —
+and any agent in the terminals that has stopped to ask you something.
 **Team's pull requests stays in its own panel**: its rows do not appear in the
 drawer or count towards its badge, even when your review is requested. Hover the
 strip and it slides out. With nothing waiting it is not there at all — the reward
 for being up to date is a clean edge.
 
-It shows nothing the panels do not. What it adds is the order, and that it
-survives them: the panels divide the sidebar's height between them and all four
-leave the screen the moment the sidebar is folded or a terminal is maximised.
-The drawer floats over the work area, so it is still there.
+What it adds is the order, and that it survives the panels: they divide the
+sidebar's height between them and all four leave the screen the moment the
+sidebar is folded or a terminal is maximised. The drawer floats over the work
+area, so it is still there.
 
 Each panel can say "3 need you" about its own list, but only something looking
 across the included panels can say which to deal with first. So the rows are
@@ -60,15 +61,47 @@ grouped by what the move actually is, worst first:
 
 | | What it is |
 |---|---|
+| **Answer** | an agent of yours is blocked, waiting for you to answer it |
 | **Fix** | a pull request of yours that cannot land: a red build, a conflict, changes requested |
 | **Decide** | a task in the queue is parked on `needs-decision` or `awaiting-merge` |
 | **Configure** | `routines.yml` holds a routine that does not parse |
 
-Your own work stuck comes before queue decisions, and inside a group the
-longest wait is first — the row most likely to have been forgotten. A click
-opens it in the browser; the one kind of row with nowhere to go, a routine whose
-file is wrong, says so instead of pretending to be a link. Past nine rows the
-rest are counted rather than drawn.
+An idling agent comes before your own work stuck, which comes before queue
+decisions; inside a group the longest wait is first — the row most likely to
+have been forgotten. **Answer** leads because it is the only one whose cost is
+still being paid: a red build is already broken and will be just as broken in an
+hour. A click opens the row in the browser, or goes to the terminal for an
+agent; the one kind of row with nowhere to go, a routine whose file is wrong,
+says so instead of pretending to be a link. Past nine rows the rest are counted
+rather than drawn.
+
+### The agents
+
+These rows cost nothing: they come from Herdr's own live answer about its own
+terminals, so there is no panel to install, no block to add to a layout and
+nothing polled. An agent in another tab or another space is on the drawer all
+the same, and a click takes you to it wherever it is.
+
+Only a blocked agent gets a row. One that is working is not waiting on anybody,
+and one that finished is not either — Herdr marks it `done` and then `idle` the
+moment you look at it, so a row for it would clear itself for reasons the drawer
+cannot see. The agent that currently has your keyboard is left out too: it is
+already in front of you.
+
+### Not today
+
+The crescent at the end of a row puts it off until 8am tomorrow — or this
+morning, if it is still before eight. A drawer that is always lit is not a
+signal, and a pull request you cannot touch until Monday would keep it lit for
+three days.
+
+**Only the drawer goes quiet.** The panel the row came from publishes it exactly
+as before and still counts it in its own header, which is where to look for
+something you put off and now want back. Under the rows, `N snoozed` says how
+many are asleep, and a press on it brings all of them back. Put everything off
+and the edge goes clean, the same as having nothing waiting — including the
+strip, so that line is then out of reach until the morning. What is snoozed is
+remembered per machine, like the repo you pick.
 
 There is one rule about when it shows: something is waiting, or it is not. It
 does not step aside for a panel docked in the right column, or for Herdr's
@@ -77,7 +110,11 @@ drag the strip to the other edge and Herdr remembers it.
 
 ## Requirements
 
-- Herdr 0.1.13 or newer.
+- Herdr 0.1.14 or newer. The drawer asks the app which agents are blocked
+  (`agents()`, `spaces()`), and a `herdr` that does not have those is not a
+  drawer without agent rows — it is an import that fails and takes every panel
+  with it. 0.1.14 is the version this was verified on; if those functions turn
+  out to predate it, this is the line to lower.
 - The [GitHub CLI](https://cli.github.com), signed in: `gh auth login`. It is
   the only way in — there is no token to configure. On Windows it does not need
   to be on your PATH; the known install paths are tried too.

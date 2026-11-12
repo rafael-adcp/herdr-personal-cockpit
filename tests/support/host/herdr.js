@@ -34,6 +34,11 @@ export const host = {
    * the drawer reads it to decide which side its peek strip goes on.
    */
   placement: null,
+  /** The agents the app is running, as `agents()` answers, and the spaces they
+   *  are in. Kept rather than recorded: it is the app's state, and the drawer
+   *  reads it the way it reads shared state. */
+  agents: [],
+  spaces: [],
   /** Resolves the `nextCommand()` a panel is awaiting. */
   deliver: null,
   exec: [],
@@ -51,6 +56,8 @@ export function reset(over = {}) {
   host.layout = null;
   host.props = null;
   host.placement = null;
+  host.agents = [];
+  host.spaces = [];
   host.deliver = null;
   host.exec = [];
   host.run = [];
@@ -70,6 +77,10 @@ export const props = () => host.props;
 export const layout = () => host.layout;
 
 export const placement = () => host.placement;
+
+export const agents = () => host.agents;
+
+export const spaces = () => host.spaces;
 
 export const shared = (key) => host.shared.get(key);
 

@@ -7,11 +7,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { VERBS, groups, merge } from "../mods/personal-cockpit/kit/urgent.js";
+import { SNOOZED, VERBS, awake, groups, merge, morning, withSnooze } from "../mods/personal-cockpit/kit/urgent.js";
 
 const row = (verb, key, at = 0) => ({ key, verb, title: key, reason: "because", url: null, at });
 
 const keys = (rows) => rows.map((r) => r.key);
+
+const NOON = Date.parse("2026-03-02T12:00:00Z");
 
 test("the verbs are distinct, and named", () => {
   const ids = VERBS.map(([id]) => id);
@@ -95,4 +97,80 @@ test("groups keeps every row it was given", () => {
   const merged = merge([[row("fix", "a"), row("review", "b"), row("decide", "c"), row("config", "d")]]);
   const total = groups(merged).reduce((n, g) => n + g.rows.length, 0);
   assert.equal(total, merged.length);
+});
+
+// ---- not today -------------------------------------------------------------
+
+test("a snooze lasts until the morning, not for a fixed stretch of hours", () => {
+  // The point of a wall-clock hour: "not today" has to end when the day does,
+  // or something put off at 11pm comes back in the small hours.
+  for (const hour of [0, 3, 7, 9, 13, 20, 23]) {
+    const now = new Date(2026, 2, 2, hour, 30, 0, 0).getTime();
+    const until = morning(now);
+    const when = new Date(until);
+    assert.ok(until > now, `${hour}:30 snoozed to the past`);
+    assert.equal(when.getHours(), 8, `${hour}:30 woke at ${when.getHours()}`);
+    assert.equal(when.getMinutes(), 0);
+    // Tomorrow morning at the latest, so nothing can hide for a week.
+    assert.ok(until - now <= 24 * 3600_000, `${hour}:30 slept longer than a day`);
+  }
+});
+
+test("before the morning hour it is this morning, after it is the next", () => {
+  const sevenish = new Date(2026, 2, 2, 7, 0, 0, 0).getTime();
+  const nineish = new Date(2026, 2, 2, 9, 0, 0, 0).getTime();
+  assert.equal(morning(sevenish), new Date(2026, 2, 2, 8, 0, 0, 0).getTime());
+  assert.equal(morning(nineish), new Date(2026, 2, 3, 8, 0, 0, 0).getTime());
+});
+
+test("the hour it means by morning is an argument, so this is not about 8", () => {
+  const now = new Date(2026, 2, 2, 12, 0, 0, 0).getTime();
+  assert.equal(morning(now, 17), new Date(2026, 2, 2, 17, 0, 0, 0).getTime());
+});
+
+test("a snoozed row is not drawn, and the rest of the list is untouched", () => {
+  const rows = [row("fix", "a"), row("fix", "b")];
+  assert.deepEqual(keys(awake(rows, { a: NOON + 3600_000 }, NOON)), ["b"]);
+  assert.deepEqual(keys(awake(rows, {}, NOON)), ["a", "b"]);
+});
+
+test("a snooze that has run out is over, with nothing having to sweep it", () => {
+  const rows = [row("fix", "a")];
+  assert.deepEqual(keys(awake(rows, { a: NOON - 1 }, NOON)), ["a"]);
+  assert.deepEqual(keys(awake(rows, { a: NOON }, NOON)), ["a"], "the moment it is due, it is back");
+});
+
+test("junk in the snooze map hides nothing", () => {
+  // Shared state is persisted, so this map outlives the copy of the mod that
+  // wrote it. A row wrongly hidden is work nobody is being told about, so
+  // anything that is not a time in the future counts as awake.
+  const rows = [row("fix", "a")];
+  for (const junk of [null, undefined, "a", 42, ["a"], { a: "later" }, { a: null }, { a: true }, { a: 0 }, { a: -1 }]) {
+    assert.deepEqual(keys(awake(rows, junk, NOON)), ["a"], JSON.stringify(junk) ?? "undefined");
+  }
+});
+
+test("putting a row off keeps the others and drops what has already woken", () => {
+  const next = withSnooze({ old: NOON - 1, kept: NOON + 3600_000 }, "new", NOON + 7200_000, NOON);
+  assert.deepEqual(next, { kept: NOON + 3600_000, new: NOON + 7200_000 });
+});
+
+test("putting the same row off again moves its morning rather than adding one", () => {
+  const once = withSnooze({}, "a", NOON + 3600_000, NOON);
+  const twice = withSnooze(once, "a", NOON + 7200_000, NOON);
+  assert.deepEqual(twice, { a: NOON + 7200_000 });
+});
+
+test("a snooze map made from junk is still a map", () => {
+  for (const junk of [null, "nonsense", 42, ["a"], { a: "later" }]) {
+    const next = withSnooze(junk, "a", NOON + 1, NOON);
+    assert.deepEqual(next, { a: NOON + 1 }, JSON.stringify(junk) ?? "undefined");
+  }
+});
+
+test("the snooze map has one key for every panel's rows", () => {
+  // The drawer is the only thing that reads it and reads all of them at once,
+  // so one key is one read -- and it is persisted the way the repo picks are,
+  // which is what makes it per machine.
+  assert.equal(SNOOZED, "cockpit.snoozed");
 });
