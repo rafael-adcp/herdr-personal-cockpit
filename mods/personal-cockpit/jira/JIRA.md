@@ -28,7 +28,9 @@ of tickets is created.
 
 ## Requirements and authentication
 
-- Herdr 0.1.13+ and Node.js 22.19+ (on Herdr's PATH, or set `node` in Jira config).
+- Node.js 22.19+ (on Herdr's PATH, or set `node` in Jira config). This panel
+  itself needs nothing newer than Herdr 0.1.13; the mod it ships in asks for
+  0.1.14, and the README says why.
 - An existing **managed Pi installation** at `~/.pi/agent` (or
   `PI_CODING_AGENT_DIR`), tested with Pi **1.4.0**.
 - The user-level `atlassian` OAuth server in `~/.pi/agent/mcp.json` at

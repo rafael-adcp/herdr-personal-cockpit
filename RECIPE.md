@@ -10,10 +10,12 @@ network blips, minimises to its own header bar, and moves to the other side
 with one button. Click a row to open it in the browser.
 
 Hanging off the window's left edge, a 44 px strip with a count: what is waiting
-on you across My pull requests, Kraken Tasks and Routines, ordered by what the
-move actually is. Team's pull requests remains in its own panel, excluded from
-the drawer and its count. The drawer floats over the work area, so it is still
-there when the sidebar is folded — and with nothing waiting it is not drawn at all.
+on you across My pull requests, Kraken Tasks and Routines, plus any agent in the
+terminals that has stopped to ask you something, ordered by what the move
+actually is. Team's pull requests remains in its own panel, excluded from the
+drawer and its count. A row can be put off until the morning. The drawer floats
+over the work area, so it is still there when the sidebar is folded — and with
+nothing waiting it is not drawn at all.
 
 ![Personal Cockpit](preview.png)
 
@@ -135,14 +137,23 @@ at all — no strip, nothing on the edge.
   padding, 12 px above.
 - Then a group per kind of move, in this order and only when it has rows, each
   with the same 10 px semibold `dim` section head and `muted` count a panel
-  uses: **Fix**, **Decide**, **Configure**.
+  uses: **Answer**, **Fix**, **Decide**, **Configure**.
 - Each **row** is the panels' own row, drawn by the same `row()`: an 11 px `●`
   in `blocked`, the title in 12 px `foreground`, the age in 10 px `dim`, and on
-  the second line the one reason in 10.5 px `dim` — `conflicts`,
+  the second line the one reason in 10.5 px `dim` — the agent's program and the
+  space it is in (`Claude Code · cockpit`) for Answer; `conflicts`,
   `changes requested` or `N failing` for Fix; the label that parked it (`needs-decision`, `awaiting-merge`) for Decide; the
-  validation message for Configure.
+  validation message for Configure. An **Answer** row is titled by its tab's
+  name, or by the terminal's own title when nobody named the tab, since an
+  unnamed one is called by its position.
+- At the end of every row's first line, a 13 px `dim` crescent in the same
+  `action` button the header bars use, tooltip `Not today`, brightening to
+  `foreground` under the pointer. A press on it is not a press on the row.
 - Nine rows at most, then `+N more` in 10 px `dim`, 16 px in. Plain text, not a
   control.
+- Then `N snoozed` in the same 10 px `dim`, when anything has been put off.
+  That one *is* a control: it is the only place a snooze is visible at all, so a
+  press brings every one of them back.
 - On the left edge the strip and the body swap, so the peek is always the side
   against the edge. On the top or bottom edge there is no strip: `peek` is for
   the sides only and Herdr shows the whole block.
@@ -279,17 +290,44 @@ for all four panels, and The floating drawer. Everything on it is made up.
   trouble belongs in its own header, beside the button that fixes it. A refresh
   that failed over a good list leaves the panel's state `ok`, so those rows
   stay — the drawer goes stale exactly when the panel does.
+- **The agents are the one thing it reads itself.** `agents()` is the app's own
+  live answer about its own terminals — no process, no network, no clock of
+  ours — so the argument for publishing does not apply and the drawer calls it
+  on every render. Which is also why there is no agents panel and nothing to add
+  to a layout: those rows are wherever the drawer is. Only `blocked` earns one.
+  `working` is not waiting on anybody, `idle` is nothing, and `done` becomes
+  `idle` the moment somebody looks at it on any Herdr client — a row that clears
+  itself for reasons outside this mod is a row that flickers. An agent that has
+  the keyboard is left out too: it is already in front of you. The row's age is
+  its tab's `changed_at`, because an agent's own record carries no clock
+  (`seq` orders them but is not a time).
 - **The order is the drawer's whole reason to exist.** Any panel can say
   `3 needs you` about its own list; only something looking across the included
-  panels can say which to deal with first. Verbs come in the order above — your
-  own work stuck, then the queue waiting on a decision, then a file
-  of ours that is wrong — and inside a verb the longest wait is first, which is
-  the opposite of how the panels sort their own lists. They are lists you read;
-  this is a list you are nagged by, and the forgotten row is the one that sat
-  still. An unknown age sorts last rather than first.
-- **A click on a drawer row** opens it in the browser. A Configure row has no
-  page — a broken routine has no task — so it wires no click and takes no
-  pointer: the gear in the Routines header is what opens the file.
+  panels can say which to deal with first. Verbs come in the order above — an
+  agent of yours standing still, then your own work stuck, then the queue
+  waiting on a decision, then a file of ours that is wrong — and inside a verb
+  the longest wait is first, which is the opposite of how the panels sort their
+  own lists. They are lists you read; this is a list you are nagged by, and the
+  forgotten row is the one that sat still. An unknown age sorts last rather than
+  first. **Answer** leads because it is the only verb whose cost is still being
+  paid: a red build is already broken and will be just as broken in an hour,
+  while an agent parked on a question is a machine idling.
+- **A click on a drawer row** opens it in the browser, or runs the command the
+  row carries — `agent.focus {terminal}` for an agent, which is a terminal in
+  this window and not a page. A Configure row has neither — a broken routine has
+  no task — so it wires no click and takes no pointer: the gear in the Routines
+  header is what opens the file.
+- **Not today.** The snooze on a row writes `{ key: until }` into
+  `shared("cockpit.snoozed")`, where `until` is the next 8am local — a
+  wall-clock hour and not a duration, so something put off at 11pm is back for
+  the morning rather than for the small hours. Every write drops the entries
+  that have already woken, which is why nothing has to sweep the map. Only the
+  drawer goes quiet: the panels publish every urgent row as they always did and
+  their own pills still count them, which is where to look for something you
+  put off and now want back. A drawer whose every row is asleep draws nothing at
+  all, the same as one with nothing waiting — so the count is drawn next to the
+  rows, where there is something left to press it beside, and a press on it
+  wakes all of them.
 - **The drawer never steps aside**, and that is deliberate. It reads nothing
   about the rest of the window: not whether a panel is docked in `right-lists`,
   not whether Herdr's files and changes panel is open. One rule decides whether
@@ -323,16 +361,16 @@ mods/personal-cockpit/
   *.example.yml           routines and team, seeded on install and by the gear
   jira.config.example.json  Jira site/cloud ID/JQL example; no credentials
 
-  icons/*.svg             thirteen: pulls, team, issues, routines, urgent,
+  icons/*.svg             fourteen: pulls, team, issues, routines, urgent,
                           refresh, plus, minus, dock-left, dock-right, settings,
-                          new-task, browse. Named from the Herdr home, so the
-                          folder is part of the string every caller passes
+                          new-task, browse, snooze. Named from the Herdr home,
+                          so the folder is part of the string every caller passes
 
   kit/kit.js              the chrome a panel draws: header, rail, row, section
-                          head, badge, button, spinner, shell, checkGlyph,
-                          CELL 11, WIDE 220. Takes a theme and some data,
-                          returns an element — it imports from the toolkit and
-                          nothing from `herdr`, so it decides nothing
+                          head, badge, button, action, spinner, shell,
+                          checkGlyph, CELL 11, WIDE 220. Takes a theme and some
+                          data, returns an element — it imports from the toolkit
+                          and nothing from `herdr`, so it decides nothing
   kit/dock.js             where a panel lives and how it moves: find / parentOf /
                           destinations / placeOf / hostBlockFor / narrowSidebar,
                           minimise, moveTo, COLLAPSED 42, COLLAPSED_MAX 60,
@@ -342,9 +380,15 @@ mods/personal-cockpit/
                           and sends a command back
   kit/checks.js           RED and RUNNING: what a commit's check rollup means,
                           in the two questions a row asks of it. Imports nothing
-  kit/urgent.js           which of four kinds of "your move" comes first: VERBS,
-                          merge(), groups(), shareKey(). An order is not a
-                          screen, so like checks.js and yaml.js it imports nothing
+  kit/urgent.js           which of five kinds of "your move" comes first, and
+                          the arithmetic of a snooze: VERBS, merge(), groups(),
+                          shareKey(), SNOOZED, morning(), awake(), withSnooze().
+                          Neither is about any one panel, so like checks.js and
+                          yaml.js it imports nothing
+  kit/agents.js           the blocked agents as drawer rows: rows(), GO
+                          ("agent.focus"), VERB ("answer"). Reads `agents()` and
+                          `spaces()` and returns plain rows — it decides, so
+                          like dock.js it imports nothing from the toolkit
   kit/github.js           gh discovery, graphql(), rest(), createIssue(),
                           repoList(), issueTemplates(), viewer(), ago(),
                           agoShort(), the typed error kinds, and demo mode
@@ -357,9 +401,10 @@ mods/personal-cockpit/
                           render, and publishing its urgent rows for the drawer.
                           Exports SOURCES, the roster of panels there are
   screens/drawer.js       the floating drawer: reads included panels' published
-                          rows, decides whether to draw at all and which side the
-                          peek goes on. EDGE 44 (the layout's `peek` by hand),
-                          WIDTH 320, SHOWN 9
+                          rows and the blocked agents, puts a row off until the
+                          morning, decides whether to draw at all and which side
+                          the peek goes on. EDGE 44 (the layout's `peek` by
+                          hand), WIDTH 320, SHOWN 9
   screens/gallery.js      every piece of chrome on made-up data, in one scroll
   screens/picker.js       the repo dialog
 
@@ -381,7 +426,7 @@ tools/sandbox.sh, tools/sandbox.ps1   a throwaway Herdr home on made-up data
 tools/demo.mjs, tools/demo/           the made-up world it runs on
 ```
 
-One mod, twenty-one modules in four folders, plus the separate
+One mod, twenty-two modules in four folders, plus the separate
 `jira-bridge.mjs` Node process; Jira-specific helpers are named `jira-*`.
 
 The folders are grouping, not boundaries: a mod may hold subfolders and import
@@ -448,12 +493,13 @@ The drawer's block, in the root's `floating` array rather than its `children`:
 **`herdr` functions:** `exec`, `layout`, `run`, `props`, `shared`, `setShared`,
 `theme`, `openOverlay`, `closeOverlay`, `nextCommand`, `appHome`,
 `readTextFile`, `writeTextFile`, `window`, `placement` (the drawer, for the edge
-it is hanging from; null for every other screen).
-**Commands:** `layout.resize`, `layout.set`, `terminal.open`.
+it is hanging from; null for every other screen), `agents` and `spaces` (the
+drawer, for the blocked agents and the tab each one is in).
+**Commands:** `layout.resize`, `layout.set`, `terminal.open`, `agent.focus`.
 **Mod commands it answers** (`"<mod>.<command>"` reaches every copy on screen):
 `refresh`, `focus`, `configure`, `new`, `kit`.
 **Shared state:** `cockpit.<panel>.repo`, `cockpit.<panel>.recent`,
-`cockpit.<panel>.height`, `cockpit.<panel>.urgent`.
+`cockpit.<panel>.height`, `cockpit.<panel>.urgent`, `cockpit.snoozed`.
 **Programs:** `gh` — `api graphql`, `api repos/…/issues`,
 `api repos/…/contents/.github/ISSUE_TEMPLATE`, `repo list`, `auth login`,
 `--version`; and one of `cmd /c start` / `open` / `xdg-open` for the config
@@ -588,6 +634,22 @@ adding a connection to one of these, and do not estimate.
 - **Never publish from a render.** Writing shared state re-renders every mod,
   so a write during a render is a render asking for another one, forever. It
   goes in the path that loaded.
+- **Not every source of drawer rows is a panel.** Publishing exists because the
+  drawer cannot see a panel's items and asking GitHub itself would mean a second
+  round of calls on a second clock, and two lists that can disagree. Weigh a new
+  kind of row against *that* rather than against the shape: the agents cost one
+  live read of state the app already has, so a panel for them would have bought
+  a block to install, a height to remember and a shared key to go stale, in
+  exchange for nothing. They went in `kit/agents.js` and the drawer calls it.
+  The test of which way round it goes is what the read costs, not whether the
+  rows look like a list.
+- **A snooze must only quiet the drawer.** Nothing in a panel knows the map
+  exists: they publish every urgent row and their pills count every one, so the
+  work is never hidden anywhere but on the edge, and `cockpit.snoozed` can be
+  deleted at any moment with nothing lost but the quiet. A snooze that filtered
+  what a panel published would be work disappearing out of the app — and the
+  drawer, which is the thing that goes blank when there is nothing awake, would
+  be the only place left that could have told you.
 - **`peek` is not measured in exactly the pixels the strip is drawn at.** On a
   1280-wide window a `peek` of 44 left about 75 showing, and what filled the
   difference was the right-hand edge of the body: a column of ages beside the
@@ -606,7 +668,10 @@ adding a connection to one of these, and do not estimate.
 - **Nothing waiting means nothing drawn, and that is a trade.** The edge stays
   clean, which is the point; the cost is that somebody who has never seen it
   full does not know it is there. The README names it so the drawer does not
-  have to.
+  have to. Everything being asleep is deliberately the same case, which is the
+  one place the trade bites twice: there is then no strip to hover and so no way
+  back to `N snoozed` until the morning. The panels are the way back, and they
+  never hid anything.
 - **Don't make the drawer step aside for what is behind it.** It was built that
   way first: on the right edge it drew nothing while `right-lists` or `panel`
   was visible, reasoning that a drawer over a panel is worse than no drawer and
@@ -717,8 +782,20 @@ adding a connection to one of these, and do not estimate.
   **Fix**, **Decide** and **Configure** in that order and one row under each.
   The Team review stays in its own panel and does not affect the drawer's count.
   Each included row says the same thing its panel's row says.
+- Ask an agent in one of the terminals something it has to stop and ask you
+  back, then click away from its pane: the count goes to `4` and an **Answer**
+  group appears above **Fix**, titled by that tab, with how long it has been
+  waiting. A click on the row focuses that terminal — in another tab or another
+  space if that is where it is — and the row is gone from the drawer, because
+  the agent you are looking at is not waiting on you. No layout changed and no
+  panel was installed for any of it.
 - A click on the Fix row opens that pull request in the browser. The Configure
   row takes no pointer and opens nothing.
+- The crescent at the end of the Fix row takes it off the drawer until 8am,
+  leaves `3 needs you` in the My pull requests header exactly as it was, and
+  puts `1 snoozed` under the rows. Pressing that brings it back. Put all four
+  off and the edge is clean, as if nothing were waiting — the panels still say
+  what is.
 - Folding the sidebar away leaves the drawer where it was — which is the whole
   reason it is not in the sidebar.
 - Moving every panel into one column leaves the drawer exactly where it was,

@@ -50,8 +50,11 @@ export const button = (t, id, label, onClick) =>
     .on_click(onClick)
     .child(label);
 
-/** A header-bar icon button. */
-const action = (t, id, tip, icon, onClick) =>
+/** An icon button: the header bar's, and the drawer's own snooze. Exported for
+ *  that second caller, which needs the same 13px glyph and the same
+ *  `stop_propagation` -- a press on it must not also count as a press on
+ *  whatever it is sitting on. */
+export const action = (t, id, tip, icon, onClick) =>
   div()
     .id(id)
     .flex_none()
@@ -202,7 +205,12 @@ export function checkGlyph(t, state) {
 }
 
 /** A two-line row: a glyph, a truncating title and an age; then, when there is
- *  room, a second line of whatever the panel wants to put there. */
+ *  room, a second line of whatever the panel wants to put there.
+ *
+ *  `action` is an element at the end of the first line, for a row that can be
+ *  done something to as well as opened -- the drawer's snooze. It goes after
+ *  the age, where the header keeps its own buttons, and it is the caller's job
+ *  to stop a press on it reaching the row (`action()` above does). */
 export function row(t, o) {
   const line1 = h_flex()
     .gap(6)
@@ -210,7 +218,8 @@ export function row(t, o) {
     .child(o.glyph)
     .child(div().flex_1().min_w(0).truncate().text_size(12).text_color(t.foreground).child(o.title))
     .when(Boolean(o.tag), (el) => el.child(div().flex_none().text_size(9.5).text_color(t.dim).child(o.tag)))
-    .child(div().flex_none().text_size(10).text_color(t.dim).child(o.age));
+    .child(div().flex_none().text_size(10).text_color(t.dim).child(o.age))
+    .when(Boolean(o.action), (el) => el.child(o.action));
 
   const el = v_flex()
     .id(o.id)

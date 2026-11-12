@@ -154,6 +154,60 @@ export const placedAt = (edge = "right", over = {}) => ({
   ...over,
 });
 
+// ---- the agents in the terminals (agents.js) ------------------------------
+
+/** One agent, as `agents()` describes it. Blocked by default, because that is
+ *  the only status the drawer draws and so the only one worth defaulting to. */
+export const agentInfo = (over = {}) => ({
+  address: "core/t1",
+  pane: "p1",
+  space: "s1",
+  space_name: "app",
+  tab: "t-1",
+  tab_index: 2,
+  tab_name: "install the hook",
+  status: "blocked",
+  app: "claude-code",
+  program: { key: "claude", name: "Claude Code", icon: null, tint: true, tile: null, color: null, shell: false, agent: true },
+  title: "waiting for input",
+  seq: 7,
+  pinned: false,
+  focused: false,
+  ...over,
+});
+
+/** A space holding tabs, as `spaces()` describes it: where an agent's row gets
+ *  its age, since the agent's own record carries no clock. */
+export const spaceWithTabs = (tabs = [], over = {}) => ({
+  id: "s1",
+  index: 1,
+  name: "app",
+  named: true,
+  folder: "/home/you/app",
+  machine: null,
+  branch: "main",
+  active: true,
+  status: "blocked",
+  tabs,
+  ...over,
+});
+
+export const tabInfo = (over = {}) => ({
+  id: "t-1",
+  index: 2,
+  name: "install the hook",
+  named: true,
+  active: true,
+  status: "blocked",
+  panes: 1,
+  zoomed: false,
+  settled: false,
+  settled_at: null,
+  changed_at: NOW - 25 * 60_000,
+  working_since: null,
+  ...over,
+});
+
 /** A row as a panel's `urgent` returns it, for the drawer to draw. */
 export const urgentRow = (over = {}) => ({
   key: "pulls:acme/app#7",

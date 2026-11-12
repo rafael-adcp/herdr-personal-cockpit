@@ -165,7 +165,12 @@ const ROUTINES = [
   },
 ];
 
+// The agent row is the one with a `go` instead of a `url`: it is a terminal in
+// this window rather than a page, so it is the one row whose press needs the
+// app. Drawn here with the handler pointing nowhere, which is how the gallery
+// shows the chrome without being able to focus anybody's real terminal.
 const DRAWER_ROWS = [
+  { key: "agents:core/t3", verb: "answer", title: "rotate the preview tokens", reason: "Claude Code · acme", url: null, go: { name: "agent.focus", args: { terminal: "core/t3" } }, at: Date.now() - 6 * 60_000 },
   { key: "pulls:acme/app#128", verb: "fix", title: "Keep the last good list when a refresh fails", reason: "lint failing", url: "https://github.com/acme/app/pull/128", at: Date.now() - 42 * 60_000 },
   { key: "issues:77", verb: "decide", title: "Decide whether routines get a cron field", reason: "needs-decision", url: "https://github.com/acme/tasks/issues/77", at: Date.now() - 20 * 60_000 },
   { key: "routines:2-unnamed", verb: "config", title: "routine 3", reason: "routine 3 has no title", url: null, at: 0 },
@@ -311,8 +316,16 @@ export class Gallery {
   render() {
     const t = theme();
     // The drawer's own body, on made-up rows: it takes them as an argument, so
-    // nothing of the real panels' published state is read or written here.
-    const drawer = new Drawer(this.view, { focus_handle: () => this.handle }).body(t, DRAWER_ROWS);
+    // nothing of the real panels' published state is read or written here. Its
+    // actions are handed in the same way, and here they lead nowhere -- every
+    // piece of its chrome is drawn, including the snooze on each row and the
+    // count of what has been put off, and none of it can do anything.
+    const drawer = new Drawer(this.view, { focus_handle: () => this.handle }).body(t, DRAWER_ROWS, {
+      snoozed: 2,
+      onGo: nowhere,
+      onSnooze: nowhere,
+      onWake: nowhere,
+    });
 
     return v_flex()
       .id("cockpit-gallery")
