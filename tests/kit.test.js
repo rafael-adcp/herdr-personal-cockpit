@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 
 import {
   WIDE, CELL,
-  badge, button, spinner, rail, header, sectionHead, cell, checkGlyph, row, shell,
+  action, badge, button, spinner, rail, header, sectionHead, cell, checkGlyph, row, shell,
 } from "../mods/personal-cockpit/kit/kit.js";
 import { RAIL_MAX } from "../mods/personal-cockpit/kit/dock.js";
 import { theme } from "./support/host/herdr.js";
@@ -77,6 +77,29 @@ test("a row builds with and without each optional part", () => {
   assert.doesNotThrow(() => row(t, { ...base, wide: false, selected: true }));
   assert.doesNotThrow(() => row(t, { ...base, wide: false, second: [badge(t, "x")] }));
   assert.doesNotThrow(() => row(t, { ...base, second: [] }));
+  assert.doesNotThrow(() => row(t, { ...base, action: badge(t, "x") }));
+  assert.doesNotThrow(() => row(t, { ...base, wide: false, action: badge(t, "x") }));
+});
+
+test("a row's own button is a press on it and not on the row", () => {
+  // The drawer's snooze sits on a row that opens something. Without this,
+  // putting a row off would also open the page it is about.
+  let pressed = 0;
+  const opened = () => assert.fail("the row was opened by a press on its button");
+  const el = row(t, {
+    id: "r",
+    title: "A title",
+    age: "3d",
+    wide: true,
+    onClick: opened,
+    action: action(t, "r-snooze", "Not today", "mods/personal-cockpit/icons/snooze.svg", () => pressed++),
+  });
+
+  // The row's own handler is wired first, so the button's is the second.
+  const context = press();
+  handlerOf(el, "on_click", 1)({}, context);
+  assert.equal(pressed, 1);
+  assert.equal(context.stopped, 1);
 });
 
 // ---- the header bar -------------------------------------------------------

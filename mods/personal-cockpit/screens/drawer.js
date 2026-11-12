@@ -8,22 +8,28 @@
 // showing, slides it out under the pointer, and remembers where it was dragged.
 // All of that is the app's; what is here is only which rows and when to show.
 //
-// It shows no information the panels do not. What it adds is the one thing none
-// of them can: each panel can say "3 need you" about its own list, but only
-// something looking across panels can say which to deal with first. urgent.js
-// holds that order.
+// What it adds is the one thing no panel can: each can say "3 need you" about
+// its own list, but only something looking across them can say which to deal
+// with first. urgent.js holds that order.
 //
 // Nothing is loaded here. The panels publish what they already judged (see
 // urgent.js), so this screen cannot disagree with them, cannot cost a `gh`
-// call, and cannot go stale on its own clock.
+// call, and cannot go stale on its own clock. The blocked agents are the one
+// set of rows it reads for itself, because reading them costs nothing at all --
+// agents.js is where that argument lives.
+//
+// So there is one thing on it the panels do not have: a row can be put off
+// until the morning. That belongs here rather than in a panel for the same
+// reason the order does -- it is about the nagging, not about any one list.
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { placement, shared, theme } from "herdr";
+import { placement, run, setShared, shared, theme } from "herdr";
 import { agoShort } from "../kit/github.js";
-import { CELL, badge, row, sectionHead } from "../kit/kit.js";
+import { CELL, action, badge, row, sectionHead } from "../kit/kit.js";
 import { SOURCES } from "./list.js";
-import { groups, merge, shareKey } from "../kit/urgent.js";
+import * as agents from "../kit/agents.js";
+import { SNOOZED, awake, groups, merge, morning, shareKey, withSnooze } from "../kit/urgent.js";
 
 export const ICON = "mods/personal-cockpit/icons/urgent.svg";
 
@@ -37,6 +43,8 @@ const WIDTH = 320;
 // tall as the window is in the way rather than within reach. The rows it drops
 // are the shortest waits, since merge() put the longest first.
 const SHOWN = 9;
+
+const SNOOZE_ICON = "mods/personal-cockpit/icons/snooze.svg";
 
 // There is one rule about when to draw, and it is the whole of it: something is
 // waiting, or it is not.
@@ -60,18 +68,45 @@ export class Drawer {
     this.handle = cx.focus_handle();
   }
 
-  /** Included panels' published rows as one ordered list. Team stays in its
+  /** Everything that wants something, ordered: the included panels' published
+   *  rows, and the blocked agents this screen reads itself. Team stays in its
    *  own panel, not this drawer or its count. Filter before reading shared
    *  state so persisted Team rows are excluded even before its next poll. */
-  rows() {
-    return merge(
-      Object.values(SOURCES)
+  all() {
+    return merge([
+      ...Object.values(SOURCES)
         .filter((source) => source.panel !== "team")
         .map((source) => {
           const saved = shared(shareKey(source.panel));
           return Array.isArray(saved) ? saved : [];
         }),
-    );
+      agents.rows(),
+    ]);
+  }
+
+  /** What has been put off, as it was last written. */
+  sleeping() {
+    return shared(SNOOZED);
+  }
+
+  /** What the drawer draws and counts: everything, less whatever is asleep. */
+  rows() {
+    return awake(this.all(), this.sleeping(), Date.now());
+  }
+
+  /** Not today. The row goes out of the drawer until the morning; the panel it
+   *  came from never stopped counting it. */
+  snooze(key) {
+    const now = Date.now();
+    setShared(SNOOZED, withSnooze(this.sleeping(), key, morning(now), now));
+  }
+
+  /** All of it back, which is the only way back before the morning. Everything
+   *  rather than one row, because a drawer with nothing awake in it draws
+   *  nothing at all, and the rows you would pick from are the ones you cannot
+   *  see. */
+  wake() {
+    setShared(SNOOZED, {});
   }
 
   /** The peek: the one number that would make somebody open it. Deliberately
@@ -89,26 +124,41 @@ export class Drawer {
       .child(badge(t, total).px(4));
   }
 
-  /** One row, drawn by the same `row` the four panels draw: a dot, the title,
-   *  the age, and the reason on the second line where a panel puts its
-   *  signals. The reason is the panel's own first pressing fact, so a row here
-   *  and the same row in its panel never say different things. */
-  line(t, r) {
+  /** One row, drawn by the same `row` the panels draw: a dot, the title, the
+   *  age, and the reason on the second line where a panel puts its signals. The
+   *  reason is the panel's own first pressing fact, so a row here and the same
+   *  row in its panel never say different things.
+   *
+   *  A page is opened from here, because that needs nothing of the app and the
+   *  gallery draws this same body on made-up rows. Anything that sends the app
+   *  a message -- focusing an agent, putting a row off -- is handed in by the
+   *  screen that owns it, so the gallery can draw the chrome without being able
+   *  to do any of it. */
+  line(t, r, o) {
+    const go = typeof r.go?.name === "string" ? r.go : null;
     return row(t, {
       id: `urgent-${r.key}`,
       glyph: div().w(CELL).flex_none().text_center().text_color(t.blocked).child("●"),
       title: r.title,
       age: agoShort(r.at),
-      tooltip: [r.title, r.reason, r.url ?? "nothing to open: fix it where it is configured"].join("\n"),
+      tooltip: [
+        r.title,
+        r.reason,
+        r.url ?? (go ? "press to go to it" : "nothing to open: fix it where it is configured"),
+      ].join("\n"),
       // The drawer is wider than the rail threshold, so the second line is
       // always drawn -- which is the only reason the reason is worth carrying.
       wide: true,
-      onClick: r.url ? (_e, cx) => cx.open_url(r.url) : null,
+      onClick:
+        r.url ? (_e, cx) => cx.open_url(r.url)
+        : go && o.onGo ? (_e, cx) => o.onGo(go, cx)
+        : null,
+      action: o.onSnooze ? action(t, `urgent-${r.key}-snooze`, "Not today", SNOOZE_ICON, () => o.onSnooze(r)) : null,
       second: [div().flex_none().text_color(t.dim).child(r.reason)],
     });
   }
 
-  body(t, rows) {
+  body(t, rows, o = {}) {
     const shown = rows.slice(0, SHOWN);
     const hidden = rows.length - shown.length;
 
@@ -131,13 +181,36 @@ export class Drawer {
 
     for (const group of groups(shown)) {
       body.push(sectionHead(t, group.label, group.rows.length));
-      body.push(v_flex().px(6).gap(1).children(group.rows.map((r) => this.line(t, r))));
+      body.push(v_flex().px(6).gap(1).children(group.rows.map((r) => this.line(t, r, o))));
     }
 
     // Plain text, not a control: there is nowhere for it to lead that is not
     // the panel the row came from, and those are a key away.
     if (hidden > 0) {
       body.push(div().px(16).pt(6).text_size(10).text_color(t.dim).child(`+${hidden} more`));
+    }
+
+    // This one *is* a control, unlike the line above it: it has somewhere to
+    // lead. It is also the only place a snooze is visible at all, so a press
+    // undoes every one of them -- a count with no way back would be a drawer
+    // quietly keeping things from you.
+    if (o.snoozed > 0) {
+      body.push(
+        div()
+          .id("cockpit-urgent-wake")
+          .px(16)
+          .pt(6)
+          .text_size(10)
+          .text_color(t.dim)
+          .tooltip("Put off until the morning. Press to show them again.")
+          .when(Boolean(o.onWake), (el) =>
+            el
+              .cursor_pointer()
+              .hover((s) => s.text_color(t.foreground))
+              .on_click((_e, cx) => o.onWake(cx)),
+          )
+          .child(`${o.snoozed} snoozed`),
+      );
     }
 
     return v_flex()
@@ -158,7 +231,8 @@ export class Drawer {
 
   render() {
     const t = theme();
-    const rows = this.rows();
+    const all = this.all();
+    const rows = awake(all, this.sleeping(), Date.now());
     const place = placement();
 
     // Nothing waiting, nothing drawn -- not even the strip. A drawer you put
@@ -166,14 +240,25 @@ export class Drawer {
     // edge stays clean and the reward for being up to date is seeing nothing.
     // The cost is that it cannot be found when there is nothing in it, which is
     // what RECIPE.md's "Watch out" is for.
+    //
+    // A drawer whose every row is asleep is the same case, deliberately: you
+    // said not today about all of it, so the edge is clean and the panels --
+    // which never hid anything -- are where the work still is.
     if (!rows.length) return div().size(0);
+
+    const o = {
+      snoozed: all.length - rows.length,
+      onGo: (go) => run(go.name, go.args),
+      onSnooze: (r) => this.snooze(r.key),
+      onWake: () => this.wake(),
+    };
 
     // Not floating: a layout put this screen in an ordinary block, where there
     // is no edge to hang from and a peek strip would lead nowhere.
-    if (!place) return this.body(t, rows).size_full();
+    if (!place) return this.body(t, rows, o).size_full();
     // On the top or bottom edge Herdr shows the whole block -- `peek` is for
     // the sides only -- so there is nothing for a strip to stand in front of.
-    if (!place.vertical) return this.body(t, rows);
+    if (!place.vertical) return this.body(t, rows, o);
 
     // Closed, the rows are not drawn at all.
     //
@@ -186,7 +271,7 @@ export class Drawer {
     // The width is still held, so the block keeps the size Herdr slides out;
     // only its contents wait for the pointer. `hovered` is what that pointer is
     // reported as, and a peek drawer being open is what it means.
-    const body = place.hovered ? this.body(t, rows) : div().w(WIDTH).flex_none();
+    const body = place.hovered ? this.body(t, rows, o) : div().w(WIDTH).flex_none();
 
     // The peek is whichever side is against the edge: the strip goes there and
     // the body opens inward. Both ways are drawn because both can happen --

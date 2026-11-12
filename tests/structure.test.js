@@ -216,6 +216,7 @@ const ALLOWED = {
   "kit/checks.js": { deny: ["herdr", "gpui-kit", "gpui-base"], why: "checks.js is vocabulary" },
   "kit/yaml.js": { deny: ["herdr", "gpui-kit", "gpui-base"], why: "yaml.js is a parser" },
   "kit/urgent.js": { deny: ["herdr", "gpui-kit", "gpui-base"], why: "urgent.js is an order, not a screen" },
+  "kit/agents.js": { deny: ["gpui-kit", "gpui-base"], why: "agents.js reads the terminals; it must not draw" },
 };
 
 test("the files that must not reach the app or the toolkit do not", () => {
@@ -315,6 +316,7 @@ test("the recipe's module count is the number of modules there are", () => {
   const WORDS = {
     ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
     sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, "twenty-one": 21,
+    "twenty-two": 22, "twenty-three": 23, "twenty-four": 24,
   };
   const recipe = read(join(ROOT, "RECIPE.md"));
   const [, word] = recipe.match(/One mod, ([a-z-]+) modules/) ?? [];

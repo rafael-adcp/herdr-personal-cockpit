@@ -14,12 +14,24 @@ import assert from "node:assert/strict";
 
 import { Drawer } from "../mods/personal-cockpit/screens/drawer.js";
 import { List } from "../mods/personal-cockpit/screens/list.js";
-import { shareKey } from "../mods/personal-cockpit/kit/urgent.js";
+import { SNOOZED, shareKey } from "../mods/personal-cockpit/kit/urgent.js";
 import { host, reset } from "./support/host/herdr.js";
 import { cx } from "./support/cx.js";
 import { gh } from "./support/gh.js";
 import { callsOf, handlerOf, textOf } from "./support/element.js";
-import { panelBlock, placedAt, prNode, rightColumn, rollup, checkRun, tree, urgentRow } from "./support/factories.js";
+import {
+  agentInfo,
+  panelBlock,
+  placedAt,
+  prNode,
+  rightColumn,
+  rollup,
+  checkRun,
+  spaceWithTabs,
+  tabInfo,
+  tree,
+  urgentRow,
+} from "./support/factories.js";
 
 const view = {};
 
@@ -156,14 +168,166 @@ test("a row leads to its page, and one with no page is not pressable", () => {
   publish("routines", [urgentRow({ key: "routines:0-x", verb: "config", title: "routine 1", url: null, at: 1 })]);
 
   const el = drawer().render();
-  // One handler, not two: the url-less row wires no click at all, which is how
-  // it avoids looking pressable.
-  const clicks = callsOf(el, "on_click");
-  assert.equal(clicks.length, 1);
+  // Three handlers for two rows: one row leads to its page, the url-less one
+  // wires no click at all -- which is how it avoids looking pressable -- and
+  // each row has its own snooze, which is a press on the row and not on it.
+  assert.equal(callsOf(el, "on_click").length, 3);
 
   const context = cx();
+  // The row's own click comes before anything inside it, so this is the page.
   handlerOf(el, "on_click")({}, context);
   assert.deepEqual(context.opened, ["https://github.com/acme/app/pull/7"]);
+});
+
+// ---- the agents in the terminals ------------------------------------------
+//
+// The one set of rows no panel publishes. Which agents earn one is agents.js's
+// business and agents.test.js's; what is here is that they arrive at all, where
+// they land in the order, and that a press goes to the terminal rather than to
+// a browser.
+
+test("a blocked agent is on the drawer, with no panel having published a thing", () => {
+  // Nothing is installed, nothing has loaded, no layout has a block for this:
+  // the drawer reads the agents itself, so the rows exist wherever it does.
+  host.agents = [agentInfo({ tab_name: "install the hook" })];
+  const text = textOf(drawer().render());
+  assert.ok(text.includes("Answer"), "no Answer heading");
+  assert.ok(text.includes("install the hook"));
+  assert.ok(text.includes("Claude Code · app"));
+});
+
+test("an agent standing still comes before a build that is already broken", () => {
+  // A red build will be just as broken in an hour. An agent parked on a
+  // question is a machine idling, and every minute of it is spent rather than
+  // merely late.
+  publish("pulls", [urgentRow({ at: 1 })]);
+  host.agents = [agentInfo({ tab_name: "install the hook" })];
+  const text = textOf(drawer().render());
+  assert.ok(text.indexOf("Answer") < text.indexOf("Fix"), `the headings came out as ${text.join(" ")}`);
+});
+
+test("a press on an agent row focuses that terminal instead of opening a page", () => {
+  host.agents = [agentInfo({ address: "core/t9" })];
+  const context = cx();
+  handlerOf(drawer().render(), "on_click")({}, context);
+  assert.deepEqual(host.run, [{ name: "agent.focus", props: { terminal: "core/t9" } }]);
+  assert.deepEqual(context.opened, [], "an agent is a terminal in this window, not a URL");
+});
+
+test("the agents count towards the peek, like everything else that wants you", () => {
+  publish("pulls", [urgentRow()]);
+  host.agents = [agentInfo({ address: "core/t1" }), agentInfo({ address: "core/t2" })];
+  host.placement = placedAt("right", { hovered: false });
+  assert.deepEqual(textOf(drawer().render()), ["3"]);
+});
+
+test("a blocked agent alone is enough to bring the drawer out", () => {
+  host.agents = [agentInfo()];
+  assert.equal(drawer().rows().length, 1);
+  host.agents = [];
+  assertDrawsNothing(drawer().render());
+});
+
+test("an agent's row says how long it has been waiting, from its tab", () => {
+  host.agents = [agentInfo({ tab: "t-1" })];
+  host.spaces = [spaceWithTabs([tabInfo({ id: "t-1", changed_at: Date.now() - 25 * 60_000 })])];
+  assert.ok(textOf(drawer().render()).includes("25m"));
+});
+
+// ---- not today -------------------------------------------------------------
+//
+// The drawer's promise is that a clean edge means nothing is waiting. A row you
+// cannot act on until Monday breaks it, and a drawer that is always lit is not
+// a signal. Only the drawer goes quiet: the panels publish every urgent row as
+// they always did, which is where to look for something you put off.
+
+/** The snooze on the first row. The row's own click is wired before anything
+ *  inside it, so with one url row on the drawer this is the second handler. */
+const snoozeOf = (el) => handlerOf(el, "on_click", 1);
+
+test("every row can be put off, whether or not it has a page", () => {
+  publish("pulls", [urgentRow({ at: 2 })]);
+  publish("routines", [urgentRow({ key: "routines:0-x", verb: "config", title: "routine 1", url: null, at: 1 })]);
+  host.agents = [agentInfo()];
+  // One snooze per row, and nothing wires two.
+  const rows = drawer().rows().length;
+  assert.equal(rows, 3);
+  assert.equal(callsOf(drawer().render(), "tooltip").filter(([tip]) => tip === "Not today").length, rows);
+});
+
+test("putting a row off takes it off the drawer and leaves the panel's list alone", () => {
+  publish("pulls", [urgentRow({ title: "mine" }), urgentRow({ key: "pulls:acme/app#8", title: "the other one" })]);
+  const current = drawer();
+  snoozeOf(current.render())({}, cx());
+
+  const text = textOf(current.render());
+  assert.equal(text.includes("mine"), false, "the row was put off and is still drawn");
+  assert.ok(text.includes("the other one"));
+  // The panel published both and still counts both: its own `N needs you` pill
+  // is not a function of what the drawer is being quiet about.
+  assert.equal(host.shared.get(shareKey("pulls")).length, 2);
+});
+
+test("with every row put off, the edge is clean again", () => {
+  // The same case as nothing waiting, deliberately: you said not today about
+  // all of it, and the panels are where the work still is.
+  publish("pulls", [urgentRow()]);
+  const current = drawer();
+  snoozeOf(current.render())({}, cx());
+  assertDrawsNothing(current.render());
+});
+
+test("what is asleep is counted where it can be pressed, and a press brings it back", () => {
+  publish("pulls", [urgentRow({ title: "mine", at: 2 }), urgentRow({ key: "pulls:acme/app#8", title: "the other one", at: 1 })]);
+  const current = drawer();
+  snoozeOf(current.render())({}, cx());
+
+  const el = current.render();
+  assert.ok(textOf(el).includes("1 snoozed"));
+  // The row that is left, its own snooze, then the count: three handlers.
+  handlerOf(el, "on_click", 2)({}, cx());
+  assert.ok(textOf(current.render()).includes("mine"), "a press on the count did not bring it back");
+  assert.deepEqual(host.shared.get(SNOOZED), {});
+});
+
+test("a snooze that has run out is over without anything having to notice", () => {
+  publish("pulls", [urgentRow({ title: "mine" })]);
+  host.shared.set(SNOOZED, { "pulls:acme/app#7": Date.now() - 1 });
+  assert.ok(textOf(drawer().render()).includes("mine"));
+  // And it is not counted as asleep either, so there is no stale count to
+  // press on.
+  assert.equal(textOf(drawer().render()).includes("1 snoozed"), false);
+});
+
+test("a snooze survives a refresh of the panel that published the row", () => {
+  // It is keyed by the row's key, which is the panel's own stable name for the
+  // thing -- not by its position in a list that reorders every poll.
+  publish("pulls", [urgentRow({ title: "mine" })]);
+  const current = drawer();
+  snoozeOf(current.render())({}, cx());
+  publish("pulls", [urgentRow({ title: "mine", at: 5 }), urgentRow({ key: "pulls:acme/app#8", title: "newer" })]);
+  const text = textOf(current.render());
+  assert.equal(text.includes("mine"), false);
+  assert.ok(text.includes("newer"));
+});
+
+test("a blocked agent can be put off too", () => {
+  host.agents = [agentInfo({ address: "core/t1", tab_name: "install the hook" })];
+  const current = drawer();
+  // The agent row's own press is the focus, so its snooze is the second.
+  handlerOf(current.render(), "on_click", 1)({}, cx());
+  assertDrawsNothing(current.render());
+  assert.deepEqual(host.run, [], "putting a row off must not also focus it");
+});
+
+test("junk in the snooze key hides nothing", () => {
+  // Shared state is persisted, so this map outlives the copy of the mod that
+  // wrote it. A row wrongly hidden is work nobody is being told about.
+  publish("pulls", [urgentRow({ title: "mine" })]);
+  for (const junk of ["nonsense", 42, ["pulls:acme/app#7"], { "pulls:acme/app#7": "later" }]) {
+    host.shared.set(SNOOZED, junk);
+    assert.ok(textOf(drawer().render()).includes("mine"), JSON.stringify(junk));
+  }
 });
 
 // ---- closed, and open ----------------------------------------------------
